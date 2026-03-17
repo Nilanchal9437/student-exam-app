@@ -1,0 +1,258 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { Link } from "expo-router";
+import React, { useState } from "react";
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+// ─── Theme token helper ───────────────────────────────────────────────────────
+function useThemeColors(isDark: boolean) {
+  return {
+    iconMuted: isDark ? "#6B7280" : "#6B7280",
+    placeholder: isDark ? "#6B7280" : "#9CA3AF",
+  } as const;
+}
+
+// ─── Hero Banner ──────────────────────────────────────────────────────────────
+function HeroBanner() {
+  return (
+    <View className="mx-4 mt-2 rounded-2xl overflow-hidden">
+      <Image
+        source={require("@/assets/images/students_learning.png")}
+        className="w-full h-52"
+        style={{ resizeMode: "cover" }}
+      />
+      {/* Overlay */}
+      <View
+        className="absolute inset-0 rounded-2xl"
+        style={{ backgroundColor: "rgba(0,0,0,0.42)" }}
+      />
+      {/* Badge */}
+      <View className="absolute top-4 left-4 bg-brand-blue px-3 py-1 rounded-full">
+        <Text className="text-white text-xs font-bold tracking-widest uppercase">
+          Account Recovery
+        </Text>
+      </View>
+      {/* Headline */}
+      <View className="absolute bottom-4 left-4 right-4">
+        <Text className="text-white text-2xl font-bold leading-tight">
+          Reset Your Password
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Sub-headline ─────────────────────────────────────────────────────────────
+function SubHeadline() {
+  return (
+    <View className="px-4 mt-5">
+      <Text className="text-gray-600 dark:text-gray-400 text-base leading-6">
+        Enter your registered email and we'll send you a{" "}
+        <Text className="text-brand-blue font-bold">password reset link.</Text>
+      </Text>
+    </View>
+  );
+}
+
+// ─── Divider ──────────────────────────────────────────────────────────────────
+function Divider() {
+  return (
+    <View className="flex-row items-center px-4 mt-5">
+      <View className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+      <Text className="mx-3 text-xs text-gray-400 dark:text-gray-500 font-semibold tracking-widest uppercase">
+        Enter Your Email
+      </Text>
+      <View className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+    </View>
+  );
+}
+
+// ─── Email Input ──────────────────────────────────────────────────────────────
+function EmailInput({
+  value,
+  onChangeText,
+  isDark,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  isDark: boolean;
+}) {
+  const colors = useThemeColors(isDark);
+
+  return (
+    <View className="px-4 mt-4">
+      <Text className="text-gray-800 dark:text-gray-200 font-semibold text-sm mb-2">
+        Email Address
+      </Text>
+      <View className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-xl px-4 border border-gray-200 dark:border-gray-700">
+        <View className="mr-3 opacity-50">
+          <MaterialIcons name="email" size={18} color={colors.iconMuted} />
+        </View>
+        <TextInput
+          className="flex-1 text-gray-800 dark:text-gray-100 text-sm py-4"
+          placeholder="name@example.com"
+          placeholderTextColor={colors.placeholder}
+          value={value}
+          onChangeText={onChangeText}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+        />
+      </View>
+    </View>
+  );
+}
+
+// ─── Info Box ─────────────────────────────────────────────────────────────────
+function InfoBox() {
+  return (
+    <View className="mx-4 mt-5 bg-brand-blue/10 dark:bg-blue-900/30 border border-brand-blue/20 dark:border-blue-700/40 rounded-xl px-4 py-3 flex-row items-start gap-3">
+      <MaterialIcons
+        name="info-outline"
+        size={18}
+        color="#2452FF"
+        style={{ marginTop: 1 }}
+      />
+      <Text className="flex-1 text-brand-blue dark:text-blue-300 text-xs leading-5">
+        Check your spam or junk folder if you don't see the email within a few
+        minutes.
+      </Text>
+    </View>
+  );
+}
+
+// ─── Send Link CTA ────────────────────────────────────────────────────────────
+function SendLinkCTA({ onPress }: { onPress?: () => void }) {
+  return (
+    <View className="px-4 mt-5">
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={onPress}
+        className="bg-brand-blue flex-row items-center justify-center gap-2 py-4 rounded-2xl"
+        style={{
+          shadowColor: "#2452FF",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.35,
+          shadowRadius: 12,
+          elevation: 8,
+        }}
+      >
+        <MaterialIcons name="send" size={18} color="white" />
+        <Text className="text-white font-bold text-base">Send Reset Link</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── Back to Login ────────────────────────────────────────────────────────────
+function BackToLogin() {
+  return (
+    <View className="px-4 mt-4">
+      <Link href="/(auth)/login" asChild>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          className="border-2 border-brand-blue flex-row items-center justify-center gap-2 py-4 rounded-2xl"
+        >
+          <MaterialIcons name="arrow-back" size={18} color="#2452FF" />
+          <Text className="text-brand-blue font-bold text-base">
+            Back to Login
+          </Text>
+        </TouchableOpacity>
+      </Link>
+    </View>
+  );
+}
+
+// ─── Footer ───────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <View className="px-4 mt-6 mb-10 items-center gap-3">
+      <Text className="text-gray-600 dark:text-gray-400 text-sm">
+        Don't have an account?{" "}
+        <Link href="/" asChild>
+          <Text className="text-brand-blue font-bold">Sign up</Text>
+        </Link>
+      </Text>
+      <Text className="text-gray-400 dark:text-gray-600 text-xs text-center leading-5 px-4">
+        By continuing, you agree to our{" "}
+        <Text className="text-gray-500 dark:text-gray-400 underline">
+          Terms of Service
+        </Text>{" "}
+        and{" "}
+        <Text className="text-gray-500 dark:text-gray-400 underline">
+          Privacy Policy
+        </Text>
+        .
+      </Text>
+    </View>
+  );
+}
+
+// ─── Forget Password Screen ───────────────────────────────────────────────────
+export default function ForgetPasswordScreen({
+  onSendLink,
+}: {
+  onSendLink?: (email: string) => void;
+}) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const [email, setEmail] = useState("");
+
+  return (
+    <SafeAreaView
+      className="flex-1 bg-white dark:bg-gray-900"
+      edges={["bottom"]}
+    >
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={20}
+      >
+        <ScrollView
+          className="flex-1 bg-white dark:bg-gray-900"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+        >
+          {/* Main content — grows to push footer down */}
+          <View style={{ flex: 1 }}>
+            {/* Hero image */}
+            <HeroBanner />
+
+            {/* Sub-headline */}
+            <SubHeadline />
+
+            {/* Divider */}
+            <Divider />
+
+            {/* Email input */}
+            <EmailInput value={email} onChangeText={setEmail} isDark={isDark} />
+
+            {/* Info hint */}
+            <InfoBox />
+
+            {/* Send reset link button */}
+            <SendLinkCTA onPress={() => onSendLink?.(email)} />
+
+            {/* Back to login (outlined) */}
+            <BackToLogin />
+          </View>
+
+          {/* Footer always at the bottom */}
+          <Footer />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
