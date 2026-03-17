@@ -8,7 +8,6 @@ import {
   useColorScheme,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const EXAM_TYPES = [
   { id: "jamb", label: "JAMB", sub: "UTME", color: "#F97316", bg: "#FFF7ED" },
@@ -323,9 +322,15 @@ function MySubjectsSection() {
     [SUBJECTS[2], SUBJECTS[3]],
   ];
 
+  const router = useRouter();
+
   return (
     <>
-      <SectionHeader title="My Subjects" action="Add Subject" />
+      <SectionHeader
+        title="My Subjects"
+        action="See All"
+        onAction={() => router.push("/subject")}
+      />
       <View className="px-4">
         {pairs.map((pair, pi) => (
           <View key={pi} className="flex-row gap-3">
