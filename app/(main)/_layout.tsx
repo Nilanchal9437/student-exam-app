@@ -165,6 +165,8 @@ export default function MainLayout() {
           <Stack.Screen name="exam" options={{ headerShown: false }} />
           <Stack.Screen name="test" options={{ headerShown: false }} />
           <Stack.Screen name="scrabble" options={{ headerShown: false }} />
+          <Stack.Screen name="community" options={{ headerShown: false }} />
+          <Stack.Screen name="chat" options={{ headerShown: false }} />
           <Stack.Screen name="results" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
         </Stack>

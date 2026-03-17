@@ -163,6 +163,7 @@ function ExamPrepSection() {
 
 // ─── Daily Leaderboard ────────────────────────────────────────────────────────
 function LeaderboardSection() {
+  const router = useRouter();
   return (
     <View className="mx-4 mt-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden">
       {/* Header row */}
@@ -242,11 +243,13 @@ function LeaderboardSection() {
       {/* View full ranking */}
       <TouchableOpacity
         activeOpacity={0.7}
-        className="py-3 items-center border-t border-gray-100 dark:border-gray-700"
+        onPress={() => router.push("/(main)/community")}
+        className="py-3 items-center justify-center flex-row gap-1.5 border-t border-gray-100 dark:border-gray-700"
       >
         <Text className="text-brand-blue font-semibold text-sm">
           View Full Ranking
         </Text>
+        <Ionicons name="arrow-forward" size={14} color="#2452FF" />
       </TouchableOpacity>
     </View>
   );
