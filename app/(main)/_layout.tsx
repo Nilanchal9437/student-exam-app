@@ -163,6 +163,7 @@ export default function MainLayout() {
           <Stack.Screen name="home" options={{ headerShown: false }} />
           <Stack.Screen name="subject" options={{ headerShown: false }} />
           <Stack.Screen name="exam" options={{ headerShown: false }} />
+          <Stack.Screen name="test" options={{ headerShown: false }} />
           <Stack.Screen name="results" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
         </Stack>

@@ -3,6 +3,7 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   FlatList,
@@ -363,6 +364,7 @@ function ExamCard({
   onUnlock: (id: string) => void;
 }) {
   const [pressed, setPressed] = useState(false);
+  const router = useRouter();
 
   return (
     <View
@@ -432,6 +434,12 @@ function ExamCard({
       {exam.unlocked ? (
         <TouchableOpacity
           activeOpacity={0.85}
+          onPress={() =>
+            router.push({
+              pathname: "/(main)/test",
+              params: { examId: exam.id, examName: exam.name },
+            })
+          }
           className="rounded-xl py-2.5 px-4 flex-row items-center gap-1.5 bg-green-500"
         >
           <Ionicons name="play" size={13} color="white" />
