@@ -1,13 +1,11 @@
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import {
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  useColorScheme,
-  View,
-} from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const EXAM_TYPES = [
   { id: "jamb", label: "JAMB", sub: "UTME", color: "#F97316", bg: "#FFF7ED" },
@@ -344,11 +342,130 @@ function MySubjectsSection() {
   );
 }
 
+// ─── Scrabble Card ────────────────────────────────────────────────────────────
+function ScrabbleCard() {
+  const router = useRouter();
+  return (
+    <View className="mx-4 mt-5">
+      <View
+        className="rounded-3xl overflow-hidden"
+        style={{
+          backgroundColor: "#2452FF",
+          shadowColor: "#2452FF",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.35,
+          shadowRadius: 16,
+          elevation: 10,
+        }}
+      >
+        {/* Decorative blobs */}
+        <View
+          style={{
+            position: "absolute",
+            top: -30,
+            right: -30,
+            width: 130,
+            height: 130,
+            borderRadius: 65,
+            backgroundColor: "rgba(255,255,255,0.07)",
+          }}
+        />
+        <View
+          style={{
+            position: "absolute",
+            bottom: -20,
+            left: 60,
+            width: 90,
+            height: 90,
+            borderRadius: 45,
+            backgroundColor: "rgba(255,255,255,0.05)",
+          }}
+        />
+
+        <View className="flex-row items-center px-5 pt-5 pb-4 gap-4">
+          {/* Tile cluster decoration */}
+          <View className="items-center justify-center">
+            <View className="flex-row gap-1 mb-1">
+              {["V", "I", "P"].map((l) => (
+                <View
+                  key={l}
+                  className="w-8 h-8 rounded-lg items-center justify-center"
+                  style={{ backgroundColor: "#F5E88A" }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "800",
+                      color: "#1A1A1A",
+                    }}
+                  >
+                    {l}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View className="flex-row gap-1">
+              {["S", "L", "O"].map((l) => (
+                <View
+                  key={l}
+                  className="w-8 h-8 rounded-lg items-center justify-center"
+                  style={{ backgroundColor: "#F5E88A" }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "800",
+                      color: "#1A1A1A",
+                    }}
+                  >
+                    {l}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Text */}
+          <View className="flex-1">
+            <View className="flex-row items-center gap-2 mb-1">
+              <View className="bg-white/20 px-2 py-0.5 rounded-full">
+                <Text className="text-white text-[10px] font-bold uppercase tracking-widest">
+                  VIP Game
+                </Text>
+              </View>
+            </View>
+            <Text className="text-white text-xl font-extrabold leading-tight mb-1">
+              Play Scrabble
+            </Text>
+            <Text className="text-white/75 text-xs leading-4">
+              Challenge the AI, build words &amp; earn coins!
+            </Text>
+          </View>
+        </View>
+
+        {/* CTA */}
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={() => router.push("/(main)/scrabble")}
+          className="mx-5 mb-5 bg-white rounded-2xl py-3.5 flex-row items-center justify-center gap-2"
+        >
+          <MaterialCommunityIcons
+            name="cards-playing-outline"
+            size={18}
+            color="#2452FF"
+          />
+          <Text style={{ color: "#2452FF", fontWeight: "800", fontSize: 15 }}>
+            Play Now
+          </Text>
+          <Ionicons name="arrow-forward" size={15} color="#2452FF" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
       <ScrollView
@@ -367,6 +484,9 @@ export default function HomeScreen() {
 
         {/* My Subjects */}
         <MySubjectsSection />
+
+        {/* Play Scrabble */}
+        <ScrabbleCard />
       </ScrollView>
     </View>
   );
