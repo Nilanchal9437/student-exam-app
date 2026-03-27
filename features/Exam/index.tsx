@@ -123,46 +123,6 @@ const INITIAL_EXAMS: ExamItem[] = [
   },
 ];
 
-// ─── Header ───────────────────────────────────────────────────────────────────
-function Header() {
-  return (
-    <View className="flex-row items-center justify-between px-5 py-4 bg-white dark:bg-gray-900">
-      <View className="flex-row items-center gap-3">
-        <View className="w-10 h-10 rounded-xl bg-brand-blue/10 items-center justify-center">
-          <MaterialCommunityIcons
-            name="school-outline"
-            size={22}
-            color="#2452FF"
-          />
-        </View>
-        <View>
-          <Text className="text-gray-900 dark:text-white text-base font-bold leading-tight">
-            Exam Portal
-          </Text>
-          <Text className="text-gray-400 dark:text-gray-500 text-xs font-medium">
-            Verified Academic Center
-          </Text>
-        </View>
-      </View>
-
-      <View className="flex-row items-center gap-3">
-        <TouchableOpacity
-          activeOpacity={0.7}
-          className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center"
-        >
-          <Ionicons name="notifications-outline" size={18} color="#6B7280" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          className="w-9 h-9 rounded-full bg-brand-blue items-center justify-center"
-        >
-          <Ionicons name="person" size={18} color="white" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
 // ─── Premium Banner ───────────────────────────────────────────────────────────
 function PremiumBanner() {
   return (
@@ -540,15 +500,11 @@ export default function ExamScreen() {
         />
       </>
     ),
-    // Re-render header only when search/filter state changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [search, activeFilter, counts],
   );
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
-      {/* Fixed app bar */}
-      <Header />
       {ListHeader}
       <FlatList
         data={filtered}

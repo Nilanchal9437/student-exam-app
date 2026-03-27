@@ -1,4 +1,5 @@
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import Header from "@/components/Header";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { usePathname, useRouter, Stack } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
@@ -159,6 +160,7 @@ export default function MainLayout() {
       edges={["top", "bottom"]}
     >
       <View style={{ flex: 1 }}>
+        <Header />
         <Stack>
           <Stack.Screen name="home" options={{ headerShown: false }} />
           <Stack.Screen name="subject" options={{ headerShown: false }} />
@@ -169,6 +171,7 @@ export default function MainLayout() {
           <Stack.Screen name="chat" options={{ headerShown: false }} />
           <Stack.Screen name="results" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen name="reference" options={{ headerShown: false }} />
         </Stack>
       </View>
 
