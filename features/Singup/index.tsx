@@ -3,8 +3,6 @@ import { Link } from "expo-router";
 import React, { useState } from "react";
 import {
   Image,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -12,18 +10,14 @@ import {
   View,
   useColorScheme,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+
 // ─── Theme token helper ───────────────────────────────────────────────────────
-// Returns raw hex values for elements that can't consume NativeWind classes
-// (e.g. icon `color` props, TextInput placeholderTextColor).
 function useThemeColors(isDark: boolean) {
   return {
     iconMuted: isDark ? "#6B7280" : "#6B7280",
     iconBack: isDark ? "#F3F4F6" : "#111827",
     iconEye: isDark ? "#6B7280" : "#9CA3AF",
     placeholder: isDark ? "#6B7280" : "#9CA3AF",
-    statusBar: isDark ? "light-content" : "dark-content",
-    statusBarBg: isDark ? "#111827" : "#ffffff",
   } as const;
 }
 
@@ -36,18 +30,15 @@ function HeroBanner() {
         className="w-full h-52"
         style={{ resizeMode: "cover" }}
       />
-      {/* Overlay — same in both themes; image is already dark enough */}
       <View
         className="absolute inset-0 rounded-2xl"
         style={{ backgroundColor: "rgba(0,0,0,0.42)" }}
       />
-      {/* LIMITED OFFER badge */}
       <View className="absolute top-4 left-4 bg-brand-blue px-3 py-1 rounded-full">
         <Text className="text-white text-xs font-bold tracking-widest uppercase">
           Limited Offer
         </Text>
       </View>
-      {/* Headline */}
       <View className="absolute bottom-4 left-4 right-4">
         <Text className="text-white text-2xl font-bold leading-tight">
           Start Learning Today
@@ -95,19 +86,6 @@ function WalletCTA() {
   );
 }
 
-// ─── Divider ──────────────────────────────────────────────────────────────────
-function OrDivider() {
-  return (
-    <View className="flex-row items-center px-4 mt-5">
-      <View className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-      <Text className="mx-3 text-xs text-gray-400 dark:text-gray-500 font-semibold tracking-widest uppercase">
-        Or Continue With
-      </Text>
-      <View className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-    </View>
-  );
-}
-
 // ─── Input Field ──────────────────────────────────────────────────────────────
 function InputField({
   label,
@@ -117,6 +95,9 @@ function InputField({
   value,
   onChangeText,
   isDark,
+  returnKeyType = "next",
+  onSubmitEditing,
+  inputRef,
 }: {
   label: string;
   placeholder: string;
@@ -125,6 +106,9 @@ function InputField({
   value: string;
   onChangeText: (text: string) => void;
   isDark: boolean;
+  returnKeyType?: "next" | "done";
+  onSubmitEditing?: () => void;
+  inputRef?: React.RefObject<TextInput | null>;
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const colors = useThemeColors(isDark);
@@ -139,6 +123,7 @@ function InputField({
           <MaterialIcons name={iconName} size={18} color={colors.iconMuted} />
         </View>
         <TextInput
+          ref={inputRef}
           className="flex-1 text-gray-800 dark:text-gray-100 text-sm py-4"
           placeholder={placeholder}
           placeholderTextColor={colors.placeholder}
@@ -147,6 +132,9 @@ function InputField({
           onChangeText={onChangeText}
           autoCapitalize="none"
           autoCorrect={false}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          blurOnSubmit={returnKeyType === "done"}
         />
         {secureTextEntry && (
           <TouchableOpacity
@@ -207,7 +195,9 @@ function Footer() {
   );
 }
 
-// ─── Login Screen ─────────────────────────────────────────────────────────────
+// ─── Signup Screen ────────────────────────────────────────────────────────────
+// Android: softwareKeyboardLayoutMode="pan" in app.json handles keyboard
+// avoidance natively. No KeyboardAvoidingView needed.
 export default function SignupScreen({
   onCreateAccount,
 }: {
@@ -218,62 +208,49 @@ export default function SignupScreen({
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const passwordRef = React.useRef<TextInput>(null);
 
   return (
-    <SafeAreaView
+    <ScrollView
       className="flex-1 bg-white dark:bg-gray-900"
-      edges={["bottom"]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
     >
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={20}
-      >
-        <ScrollView
-          className="flex-1 bg-white dark:bg-gray-900"
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
-        >
-          {/* Main content — grows to push footer down */}
-          <View style={{ flex: 1 }}>
-            {/* Hero image */}
-            <HeroBanner />
+      <View style={{ flex: 1 }}>
+        <HeroBanner />
+        <SubHeadline />
 
-            {/* Sub-headline */}
-            <SubHeadline />
+        <InputField
+          label="Email Address"
+          placeholder="name@example.com"
+          iconName="email"
+          value={email}
+          onChangeText={setEmail}
+          isDark={isDark}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
 
-            {/* Email field */}
-            <InputField
-              label="Email Address"
-              placeholder="name@example.com"
-              iconName="email"
-              value={email}
-              onChangeText={setEmail}
-              isDark={isDark}
-            />
+        <InputField
+          label="Password"
+          placeholder="Min. 8 characters"
+          iconName="lock"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+          isDark={isDark}
+          returnKeyType="done"
+          inputRef={passwordRef}
+        />
 
-            {/* Password field */}
-            <InputField
-              label="Password"
-              placeholder="Min. 8 characters"
-              iconName="lock"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              isDark={isDark}
-            />
+        <CreateAccountCTA
+          onPress={() => onCreateAccount?.(email, password)}
+        />
+      </View>
 
-            {/* Create account button */}
-            <CreateAccountCTA
-              onPress={() => onCreateAccount?.(email, password)}
-            />
-          </View>
-
-          {/* Footer always at the bottom */}
-          <Footer />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <Footer />
+    </ScrollView>
   );
 }

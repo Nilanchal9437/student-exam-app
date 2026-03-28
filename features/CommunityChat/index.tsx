@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
-  Platform,
   Text,
   TextInput,
   TouchableOpacity,
@@ -303,8 +302,8 @@ export default function CommunityChatScreen() {
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-gray-50 dark:bg-gray-900"
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={0}
+      behavior="padding"
+      keyboardVerticalOffset={60}
     >
       {/* ── Header ── */}
       <View

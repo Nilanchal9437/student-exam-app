@@ -1,9 +1,7 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Image,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -11,8 +9,8 @@ import {
   View,
   useColorScheme,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 type ProfilePayload = {
   email: string;
   phone: string;
@@ -25,6 +23,7 @@ type PasswordPayload = {
   confirmPassword: string;
 };
 
+// ─── Theme helpers ────────────────────────────────────────────────────────────
 function useThemeColors(isDark: boolean) {
   return {
     iconMuted: isDark ? "#6B7280" : "#6B7280",
@@ -33,6 +32,7 @@ function useThemeColors(isDark: boolean) {
   } as const;
 }
 
+// ─── Hero Banner ──────────────────────────────────────────────────────────────
 function HeroBanner() {
   return (
     <View className="mx-4 mt-2 rounded-2xl overflow-hidden">
@@ -81,6 +81,7 @@ function Divider({ title }: { title: string }) {
   );
 }
 
+// ─── Input Field ──────────────────────────────────────────────────────────────
 function InputField({
   label,
   placeholder,
@@ -90,20 +91,21 @@ function InputField({
   isDark,
   secureTextEntry = false,
   keyboardType = "default",
+  returnKeyType = "next",
+  onSubmitEditing,
+  inputRef,
 }: {
   label: string;
   placeholder: string;
-  iconName:
-    | "email"
-    | "phone"
-    | "school"
-    | "lock"
-    | "vpn-key";
+  iconName: "email" | "phone" | "school" | "lock" | "vpn-key";
   value: string;
   onChangeText: (text: string) => void;
   isDark: boolean;
   secureTextEntry?: boolean;
   keyboardType?: "default" | "email-address" | "phone-pad";
+  returnKeyType?: "next" | "done";
+  onSubmitEditing?: () => void;
+  inputRef?: React.RefObject<TextInput | null>;
 }) {
   const colors = useThemeColors(isDark);
   const [showValue, setShowValue] = useState(false);
@@ -118,6 +120,7 @@ function InputField({
           <MaterialIcons name={iconName} size={18} color={colors.iconMuted} />
         </View>
         <TextInput
+          ref={inputRef}
           className="flex-1 text-gray-800 dark:text-gray-100 text-sm py-4"
           placeholder={placeholder}
           placeholderTextColor={colors.placeholder}
@@ -127,6 +130,9 @@ function InputField({
           autoCapitalize={keyboardType === "default" ? "sentences" : "none"}
           autoCorrect={false}
           keyboardType={keyboardType}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          blurOnSubmit={returnKeyType === "done"}
         />
         {secureTextEntry && (
           <TouchableOpacity
@@ -145,6 +151,7 @@ function InputField({
   );
 }
 
+// ─── CTA Buttons ──────────────────────────────────────────────────────────────
 function SaveProfileCTA({ onPress }: { onPress: () => void }) {
   return (
     <View className="px-4 mt-5">
@@ -201,6 +208,9 @@ function FooterHint() {
   );
 }
 
+// ─── Profile Screen ───────────────────────────────────────────────────────────
+// Android: softwareKeyboardLayoutMode="pan" in app.json handles keyboard
+// avoidance natively. No KeyboardAvoidingView needed.
 export default function ProfileScreen({
   onSaveProfile,
   onChangePassword,
@@ -218,106 +228,112 @@ export default function ProfileScreen({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleSaveProfile = () => {
-    onSaveProfile?.({ email, phone, className });
-  };
-
-  const handleChangePassword = () => {
-    onChangePassword?.({ currentPassword, newPassword, confirmPassword });
-  };
+  // Refs for keyboard Next-key chaining
+  const phoneRef = useRef<TextInput>(null);
+  const classRef = useRef<TextInput>(null);
+  const newPassRef = useRef<TextInput>(null);
+  const confirmPassRef = useRef<TextInput>(null);
 
   return (
-    <SafeAreaView
+    <ScrollView
       className="flex-1 bg-white dark:bg-gray-900"
-      edges={["bottom"]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={{ paddingBottom: 40 }}
     >
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={20}
-      >
-        <ScrollView
-          className="flex-1 bg-white dark:bg-gray-900"
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
-        >
-          <View style={{ flex: 1 }}>
-            <HeroBanner />
+      <HeroBanner />
 
-            <SectionTitle title="Personal Information" />
-            <Divider title="Update Details" />
+      <SectionTitle title="Personal Information" />
+      <Divider title="Update Details" />
 
-            <InputField
-              label="Email Address"
-              placeholder="name@example.com"
-              iconName="email"
-              value={email}
-              onChangeText={setEmail}
-              isDark={isDark}
-              keyboardType="email-address"
-            />
+      <InputField
+        label="Email Address"
+        placeholder="name@example.com"
+        iconName="email"
+        value={email}
+        onChangeText={setEmail}
+        isDark={isDark}
+        keyboardType="email-address"
+        returnKeyType="next"
+        onSubmitEditing={() => phoneRef.current?.focus()}
+      />
 
-            <InputField
-              label="Phone Number"
-              placeholder="+91 98765 43210"
-              iconName="phone"
-              value={phone}
-              onChangeText={setPhone}
-              isDark={isDark}
-              keyboardType="phone-pad"
-            />
+      <InputField
+        label="Phone Number"
+        placeholder="+234 800 000 0000"
+        iconName="phone"
+        value={phone}
+        onChangeText={setPhone}
+        isDark={isDark}
+        keyboardType="phone-pad"
+        returnKeyType="next"
+        onSubmitEditing={() => classRef.current?.focus()}
+        inputRef={phoneRef}
+      />
 
-            <InputField
-              label="Class"
-              placeholder="e.g. Class 10"
-              iconName="school"
-              value={className}
-              onChangeText={setClassName}
-              isDark={isDark}
-            />
+      <InputField
+        label="Class"
+        placeholder="e.g. SS3"
+        iconName="school"
+        value={className}
+        onChangeText={setClassName}
+        isDark={isDark}
+        returnKeyType="done"
+        inputRef={classRef}
+      />
 
-            <SaveProfileCTA onPress={handleSaveProfile} />
+      <SaveProfileCTA
+        onPress={() => onSaveProfile?.({ email, phone, className })}
+      />
 
-            <SectionTitle title="Security" />
-            <Divider title="Change Password" />
+      <SectionTitle title="Security" />
+      <Divider title="Change Password" />
 
-            <InputField
-              label="Current Password"
-              placeholder="Enter current password"
-              iconName="lock"
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              isDark={isDark}
-              secureTextEntry
-            />
+      <InputField
+        label="Current Password"
+        placeholder="Enter current password"
+        iconName="lock"
+        value={currentPassword}
+        onChangeText={setCurrentPassword}
+        isDark={isDark}
+        secureTextEntry
+        returnKeyType="next"
+        onSubmitEditing={() => newPassRef.current?.focus()}
+      />
 
-            <InputField
-              label="New Password"
-              placeholder="Min. 8 characters"
-              iconName="vpn-key"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              isDark={isDark}
-              secureTextEntry
-            />
+      <InputField
+        label="New Password"
+        placeholder="Min. 8 characters"
+        iconName="vpn-key"
+        value={newPassword}
+        onChangeText={setNewPassword}
+        isDark={isDark}
+        secureTextEntry
+        returnKeyType="next"
+        onSubmitEditing={() => confirmPassRef.current?.focus()}
+        inputRef={newPassRef}
+      />
 
-            <InputField
-              label="Confirm New Password"
-              placeholder="Re-enter new password"
-              iconName="lock"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              isDark={isDark}
-              secureTextEntry
-            />
+      <InputField
+        label="Confirm New Password"
+        placeholder="Re-enter new password"
+        iconName="lock"
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        isDark={isDark}
+        secureTextEntry
+        returnKeyType="done"
+        inputRef={confirmPassRef}
+      />
 
-            <ChangePasswordCTA onPress={handleChangePassword} />
-          </View>
+      <ChangePasswordCTA
+        onPress={() =>
+          onChangePassword?.({ currentPassword, newPassword, confirmPassword })
+        }
+      />
 
-          <FooterHint />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <FooterHint />
+    </ScrollView>
   );
 }
