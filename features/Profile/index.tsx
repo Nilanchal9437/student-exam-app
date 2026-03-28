@@ -1,6 +1,19 @@
+/**
+ * features/Profile/index.tsx
+ *
+ * Personal Info section  → PUT /api/users/profile
+ * Security section       → PUT /api/users/change-password
+ *
+ * On mount the current user is loaded from AuthContext (restored from
+ * AsyncStorage). A fresh copy is also fetched from GET /api/users/profile
+ * so the form always shows the latest server-side data.
+ */
+
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   Text,
@@ -9,19 +22,7 @@ import {
   View,
   useColorScheme,
 } from "react-native";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-type ProfilePayload = {
-  email: string;
-  phone: string;
-  className: string;
-};
-
-type PasswordPayload = {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-};
+import { changePassword, getProfile, updateProfile } from "../../lib/authService";
 
 // ─── Theme helpers ────────────────────────────────────────────────────────────
 function useThemeColors(isDark: boolean) {
@@ -32,7 +33,7 @@ function useThemeColors(isDark: boolean) {
   } as const;
 }
 
-// ─── Hero Banner ──────────────────────────────────────────────────────────────
+// ─── Shared components ────────────────────────────────────────────────────────
 function HeroBanner() {
   return (
     <View className="mx-4 mt-2 rounded-2xl overflow-hidden">
@@ -81,6 +82,29 @@ function Divider({ title }: { title: string }) {
   );
 }
 
+// ─── Feedback banners ─────────────────────────────────────────────────────────
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <View className="mx-4 mt-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl px-4 py-3 flex-row items-start gap-2">
+      <MaterialIcons name="error-outline" size={16} color="#EF4444" style={{ marginTop: 1 }} />
+      <Text className="flex-1 text-red-600 dark:text-red-400 text-sm font-medium leading-5">
+        {message}
+      </Text>
+    </View>
+  );
+}
+
+function SuccessBanner({ message }: { message: string }) {
+  return (
+    <View className="mx-4 mt-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl px-4 py-3 flex-row items-start gap-2">
+      <MaterialIcons name="check-circle-outline" size={16} color="#22C55E" style={{ marginTop: 1 }} />
+      <Text className="flex-1 text-green-600 dark:text-green-400 text-sm font-medium leading-5">
+        {message}
+      </Text>
+    </View>
+  );
+}
+
 // ─── Input Field ──────────────────────────────────────────────────────────────
 function InputField({
   label,
@@ -94,10 +118,11 @@ function InputField({
   returnKeyType = "next",
   onSubmitEditing,
   inputRef,
+  editable = true,
 }: {
   label: string;
   placeholder: string;
-  iconName: "email" | "phone" | "school" | "lock" | "vpn-key";
+  iconName: "email" | "phone" | "school" | "lock" | "vpn-key" | "person";
   value: string;
   onChangeText: (text: string) => void;
   isDark: boolean;
@@ -106,6 +131,7 @@ function InputField({
   returnKeyType?: "next" | "done";
   onSubmitEditing?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
+  editable?: boolean;
 }) {
   const colors = useThemeColors(isDark);
   const [showValue, setShowValue] = useState(false);
@@ -115,7 +141,10 @@ function InputField({
       <Text className="text-gray-800 dark:text-gray-200 font-semibold text-sm mb-2">
         {label}
       </Text>
-      <View className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-xl px-4 border border-gray-200 dark:border-gray-700">
+      <View
+        className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-xl px-4 border border-gray-200 dark:border-gray-700"
+        style={{ opacity: editable ? 1 : 0.5 }}
+      >
         <View className="mr-3 opacity-60">
           <MaterialIcons name={iconName} size={18} color={colors.iconMuted} />
         </View>
@@ -127,12 +156,15 @@ function InputField({
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry && !showValue}
-          autoCapitalize={keyboardType === "default" ? "sentences" : "none"}
+          autoCapitalize={
+            keyboardType === "default" && !secureTextEntry ? "sentences" : "none"
+          }
           autoCorrect={false}
           keyboardType={keyboardType}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
           blurOnSubmit={returnKeyType === "done"}
+          editable={editable}
         />
         {secureTextEntry && (
           <TouchableOpacity
@@ -151,41 +183,59 @@ function InputField({
   );
 }
 
-// ─── CTA Buttons ──────────────────────────────────────────────────────────────
-function SaveProfileCTA({ onPress }: { onPress: () => void }) {
+// ─── CTA Button ───────────────────────────────────────────────────────────────
+function PrimaryButton({
+  label,
+  icon,
+  onPress,
+  loading,
+  variant = "filled",
+}: {
+  label: string;
+  icon: string;
+  onPress: () => void;
+  loading: boolean;
+  variant?: "filled" | "outline";
+}) {
+  const filled = variant === "filled";
   return (
     <View className="px-4 mt-5">
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={onPress}
-        className="bg-brand-blue flex-row items-center justify-center gap-2 py-4 rounded-2xl"
+        disabled={loading}
+        className={`flex-row items-center justify-center gap-2 py-4 rounded-2xl border-2 ${
+          filled
+            ? "bg-brand-blue border-brand-blue"
+            : "border-brand-blue bg-transparent"
+        }`}
         style={{
-          shadowColor: "#2452FF",
+          shadowColor: filled ? "#2452FF" : "transparent",
           shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.35,
+          shadowOpacity: filled ? 0.3 : 0,
           shadowRadius: 12,
-          elevation: 8,
+          elevation: filled ? 8 : 0,
+          opacity: loading ? 0.7 : 1,
         }}
       >
-        <MaterialIcons name="save" size={18} color="white" />
-        <Text className="text-white font-bold text-base">Save Profile</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function ChangePasswordCTA({ onPress }: { onPress: () => void }) {
-  return (
-    <View className="px-4 mt-4">
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={onPress}
-        className="border-2 border-brand-blue dark:border-brand-blue flex-row items-center justify-center gap-2 py-4 rounded-2xl"
-      >
-        <MaterialIcons name="lock-reset" size={18} color="#2452FF" />
-        <Text className="text-brand-blue font-bold text-base">
-          Update Password
-        </Text>
+        {loading ? (
+          <ActivityIndicator color={filled ? "#fff" : "#2452FF"} size="small" />
+        ) : (
+          <>
+            <MaterialIcons
+              name={icon as never}
+              size={18}
+              color={filled ? "white" : "#2452FF"}
+            />
+            <Text
+              className={`font-bold text-base ${
+                filled ? "text-white" : "text-brand-blue"
+              }`}
+            >
+              {label}
+            </Text>
+          </>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -209,30 +259,151 @@ function FooterHint() {
 }
 
 // ─── Profile Screen ───────────────────────────────────────────────────────────
-// Android: softwareKeyboardLayoutMode="pan" in app.json handles keyboard
-// avoidance natively. No KeyboardAvoidingView needed.
-export default function ProfileScreen({
-  onSaveProfile,
-  onChangePassword,
-}: {
-  onSaveProfile?: (payload: ProfilePayload) => void;
-  onChangePassword?: (payload: PasswordPayload) => void;
-}) {
+export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { user, updateUser } = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [className, setClassName] = useState("");
+  // ── Personal info state ──────────────────────────────────────────────────────
+  const [fullName, setFullName] = useState(user?.fullName ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [className, setClassName] = useState(user?.className ?? "");
+
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileFetching, setProfileFetching] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+
+  // ── Password state ───────────────────────────────────────────────────────────
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Refs for keyboard Next-key chaining
+  const [passLoading, setPassLoading] = useState(false);
+  const [passError, setPassError] = useState<string | null>(null);
+  const [passSuccess, setPassSuccess] = useState<string | null>(null);
+
+  // ── Refs ─────────────────────────────────────────────────────────────────────
+  const emailRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
   const classRef = useRef<TextInput>(null);
   const newPassRef = useRef<TextInput>(null);
   const confirmPassRef = useRef<TextInput>(null);
+
+  // ── Fetch latest profile from API on mount ──────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      try {
+        setProfileFetching(true);
+        const res = await getProfile();
+        const u = res.data.user;
+        setFullName(u.fullName ?? "");
+        setEmail(u.email ?? "");
+        setPhone(u.phone ?? "");
+        setClassName(u.className ?? "");
+      } catch {
+        // Silently fall back to cached user from AuthContext
+        setFullName(user?.fullName ?? "");
+        setEmail(user?.email ?? "");
+        setPhone(user?.phone ?? "");
+        setClassName(user?.className ?? "");
+      } finally {
+        setProfileFetching(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Save Profile ─────────────────────────────────────────────────────────────
+  const handleSaveProfile = async () => {
+    if (!fullName.trim() || !email.trim()) {
+      setProfileError("Full name and email are required.");
+      setProfileSuccess(null);
+      return;
+    }
+    setProfileError(null);
+    setProfileSuccess(null);
+    setProfileLoading(true);
+    try {
+      const res = await updateProfile({
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        className: className.trim(),
+      });
+      // Sync updated user back into global AuthContext + AsyncStorage
+      await updateUser(res.data.user);
+      setProfileSuccess(res.message || "Profile updated successfully!");
+    } catch (err: unknown) {
+      const msg =
+        err &&
+        typeof err === "object" &&
+        "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data
+              ?.message
+          : undefined;
+      setProfileError(msg ?? "Failed to update profile. Please try again.");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  // ── Change Password ───────────────────────────────────────────────────────────
+  const handleChangePassword = async () => {
+    setPassError(null);
+    setPassSuccess(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPassError("All password fields are required.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPassError("New password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPassError("New password and confirm password do not match.");
+      return;
+    }
+
+    setPassLoading(true);
+    try {
+      const res = await changePassword({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+      setPassSuccess(res.message || "Password changed successfully!");
+      // Clear password fields on success
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      const msg =
+        err &&
+        typeof err === "object" &&
+        "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data
+              ?.message
+          : undefined;
+      setPassError(msg ?? "Failed to change password. Please try again.");
+    } finally {
+      setPassLoading(false);
+    }
+  };
+
+  // ── Loading skeleton while fetching profile ──────────────────────────────────
+  if (profileFetching) {
+    return (
+      <View className="flex-1 bg-white dark:bg-gray-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#2452FF" />
+        <Text className="text-gray-400 dark:text-gray-500 text-sm mt-3">
+          Loading profile…
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -244,8 +415,25 @@ export default function ProfileScreen({
     >
       <HeroBanner />
 
+      {/* ═══════════════════════════════════════════════════════════════════
+          PERSONAL INFORMATION
+      ═══════════════════════════════════════════════════════════════════ */}
       <SectionTitle title="Personal Information" />
       <Divider title="Update Details" />
+
+      {profileError && <ErrorBanner message={profileError} />}
+      {profileSuccess && <SuccessBanner message={profileSuccess} />}
+
+      <InputField
+        label="Full Name"
+        placeholder="John Doe"
+        iconName="person"
+        value={fullName}
+        onChangeText={setFullName}
+        isDark={isDark}
+        returnKeyType="next"
+        onSubmitEditing={() => emailRef.current?.focus()}
+      />
 
       <InputField
         label="Email Address"
@@ -257,6 +445,7 @@ export default function ProfileScreen({
         keyboardType="email-address"
         returnKeyType="next"
         onSubmitEditing={() => phoneRef.current?.focus()}
+        inputRef={emailRef}
       />
 
       <InputField
@@ -280,15 +469,26 @@ export default function ProfileScreen({
         onChangeText={setClassName}
         isDark={isDark}
         returnKeyType="done"
+        onSubmitEditing={handleSaveProfile}
         inputRef={classRef}
       />
 
-      <SaveProfileCTA
-        onPress={() => onSaveProfile?.({ email, phone, className })}
+      <PrimaryButton
+        label="Save Profile"
+        icon="save"
+        onPress={handleSaveProfile}
+        loading={profileLoading}
+        variant="filled"
       />
 
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECURITY — CHANGE PASSWORD
+      ═══════════════════════════════════════════════════════════════════ */}
       <SectionTitle title="Security" />
       <Divider title="Change Password" />
+
+      {passError && <ErrorBanner message={passError} />}
+      {passSuccess && <SuccessBanner message={passSuccess} />}
 
       <InputField
         label="Current Password"
@@ -324,13 +524,16 @@ export default function ProfileScreen({
         isDark={isDark}
         secureTextEntry
         returnKeyType="done"
+        onSubmitEditing={handleChangePassword}
         inputRef={confirmPassRef}
       />
 
-      <ChangePasswordCTA
-        onPress={() =>
-          onChangePassword?.({ currentPassword, newPassword, confirmPassword })
-        }
+      <PrimaryButton
+        label="Update Password"
+        icon="lock-reset"
+        onPress={handleChangePassword}
+        loading={passLoading}
+        variant="outline"
       />
 
       <FooterHint />

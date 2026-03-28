@@ -1,7 +1,15 @@
+/**
+ * features/Singup/index.tsx
+ * Signup screen — calls POST /api/users/register via AuthContext.
+ * Collects fullName + email + password; shows loading + error states.
+ */
+
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   Text,
@@ -62,31 +70,7 @@ function SubHeadline() {
   );
 }
 
-// ─── Wallet CTA ───────────────────────────────────────────────────────────────
-function WalletCTA() {
-  return (
-    <View className="px-4 mt-5">
-      <TouchableOpacity
-        activeOpacity={0.85}
-        className="bg-brand-blue flex-row items-center justify-center gap-3 py-4 rounded-2xl"
-        style={{
-          shadowColor: "#2452FF",
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.35,
-          shadowRadius: 12,
-          elevation: 8,
-        }}
-      >
-        <MaterialIcons name="account-balance-wallet" size={20} color="white" />
-        <Text className="text-white font-bold text-base">
-          Free Sign up with Wallet
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Input Field ──────────────────────────────────────────────────────────────
+// ─── Generic Input Field ──────────────────────────────────────────────────────
 function InputField({
   label,
   placeholder,
@@ -98,10 +82,11 @@ function InputField({
   returnKeyType = "next",
   onSubmitEditing,
   inputRef,
+  keyboardType,
 }: {
   label: string;
   placeholder: string;
-  iconName: "email" | "lock";
+  iconName: "email" | "lock" | "person";
   secureTextEntry?: boolean;
   value: string;
   onChangeText: (text: string) => void;
@@ -109,6 +94,7 @@ function InputField({
   returnKeyType?: "next" | "done";
   onSubmitEditing?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
+  keyboardType?: "default" | "email-address";
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const colors = useThemeColors(isDark);
@@ -130,11 +116,12 @@ function InputField({
           secureTextEntry={secureTextEntry && !showPassword}
           value={value}
           onChangeText={onChangeText}
-          autoCapitalize="none"
+          autoCapitalize={iconName === "person" ? "words" : "none"}
           autoCorrect={false}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
           blurOnSubmit={returnKeyType === "done"}
+          keyboardType={keyboardType ?? "default"}
         />
         {secureTextEntry && (
           <TouchableOpacity
@@ -153,18 +140,42 @@ function InputField({
   );
 }
 
+// ─── Error Banner ─────────────────────────────────────────────────────────────
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <View className="mx-4 mt-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl px-4 py-3 flex-row items-center gap-2">
+      <MaterialIcons name="error-outline" size={16} color="#EF4444" />
+      <Text className="flex-1 text-red-600 dark:text-red-400 text-sm font-medium">
+        {message}
+      </Text>
+    </View>
+  );
+}
+
 // ─── Create Account CTA ───────────────────────────────────────────────────────
-function CreateAccountCTA({ onPress }: { onPress?: () => void }) {
+function CreateAccountCTA({
+  onPress,
+  loading,
+}: {
+  onPress: () => void;
+  loading: boolean;
+}) {
   return (
     <View className="px-4 mt-5">
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onPress}
+        disabled={loading}
         className="border-2 border-brand-blue dark:border-brand-blue flex-row items-center justify-center py-4 rounded-2xl"
+        style={{ opacity: loading ? 0.75 : 1 }}
       >
-        <Text className="text-brand-blue font-bold text-base">
-          Create Account with Email
-        </Text>
+        {loading ? (
+          <ActivityIndicator color="#2452FF" size="small" />
+        ) : (
+          <Text className="text-brand-blue font-bold text-base">
+            Create Account with Email
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -196,19 +207,39 @@ function Footer() {
 }
 
 // ─── Signup Screen ────────────────────────────────────────────────────────────
-// Android: softwareKeyboardLayoutMode="pan" in app.json handles keyboard
-// avoidance natively. No KeyboardAvoidingView needed.
-export default function SignupScreen({
-  onCreateAccount,
-}: {
-  onCreateAccount?: (email: string, password: string) => void;
-}) {
+export default function SignupScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { register } = useAuth();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const emailRef = React.useRef<TextInput>(null);
   const passwordRef = React.useRef<TextInput>(null);
+
+  const handleRegister = async () => {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setError("All fields are required.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      await register(fullName.trim(), email.trim(), password);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Registration failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <ScrollView
@@ -222,6 +253,19 @@ export default function SignupScreen({
         <HeroBanner />
         <SubHeadline />
 
+        {error && <ErrorBanner message={error} />}
+
+        <InputField
+          label="Full Name"
+          placeholder="John Doe"
+          iconName="person"
+          value={fullName}
+          onChangeText={setFullName}
+          isDark={isDark}
+          returnKeyType="next"
+          onSubmitEditing={() => emailRef.current?.focus()}
+        />
+
         <InputField
           label="Email Address"
           placeholder="name@example.com"
@@ -230,7 +274,9 @@ export default function SignupScreen({
           onChangeText={setEmail}
           isDark={isDark}
           returnKeyType="next"
+          keyboardType="email-address"
           onSubmitEditing={() => passwordRef.current?.focus()}
+          inputRef={emailRef}
         />
 
         <InputField
@@ -242,12 +288,11 @@ export default function SignupScreen({
           onChangeText={setPassword}
           isDark={isDark}
           returnKeyType="done"
+          onSubmitEditing={handleRegister}
           inputRef={passwordRef}
         />
 
-        <CreateAccountCTA
-          onPress={() => onCreateAccount?.(email, password)}
-        />
+        <CreateAccountCTA onPress={handleRegister} loading={loading} />
       </View>
 
       <Footer />

@@ -1,7 +1,17 @@
-import { MaterialIcons } from "@expo/vector-icons";
+/**
+ * features/ForgetPassword/index.tsx
+ *
+ * New flow: enter email + new password + confirm password.
+ * Calls POST /api/users/forget-password which resets directly on the server.
+ * No email link or token involved. On success, navigates to login.
+ */
+
+import { useAuth } from "@/context/AuthContext";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Link } from "expo-router";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   Text,
@@ -15,6 +25,7 @@ import {
 function useThemeColors(isDark: boolean) {
   return {
     iconMuted: isDark ? "#6B7280" : "#6B7280",
+    iconEye: isDark ? "#6B7280" : "#9CA3AF",
     placeholder: isDark ? "#6B7280" : "#9CA3AF",
   } as const;
 }
@@ -51,8 +62,9 @@ function SubHeadline() {
   return (
     <View className="px-4 mt-5">
       <Text className="text-gray-600 dark:text-gray-400 text-base leading-6">
-        Enter your registered email and we'll send you a{" "}
-        <Text className="text-brand-blue font-bold">password reset link.</Text>
+        Enter your registered email and choose a{" "}
+        <Text className="text-brand-blue font-bold">new password</Text> to
+        reset your account instantly.
       </Text>
     </View>
   );
@@ -64,46 +76,78 @@ function Divider() {
     <View className="flex-row items-center px-4 mt-5">
       <View className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
       <Text className="mx-3 text-xs text-gray-400 dark:text-gray-500 font-semibold tracking-widest uppercase">
-        Enter Your Email
+        Reset Details
       </Text>
       <View className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
     </View>
   );
 }
 
-// ─── Email Input ──────────────────────────────────────────────────────────────
-function EmailInput({
+// ─── Generic Input Field ──────────────────────────────────────────────────────
+function InputField({
+  label,
+  placeholder,
+  iconName,
   value,
   onChangeText,
   isDark,
+  secureTextEntry = false,
+  keyboardType = "default",
+  returnKeyType = "next",
+  onSubmitEditing,
+  inputRef,
 }: {
+  label: string;
+  placeholder: string;
+  iconName: "email" | "lock" | "vpn-key";
   value: string;
   onChangeText: (text: string) => void;
   isDark: boolean;
+  secureTextEntry?: boolean;
+  keyboardType?: "default" | "email-address";
+  returnKeyType?: "next" | "done";
+  onSubmitEditing?: () => void;
+  inputRef?: React.RefObject<TextInput | null>;
 }) {
   const colors = useThemeColors(isDark);
+  const [showValue, setShowValue] = useState(false);
 
   return (
     <View className="px-4 mt-4">
       <Text className="text-gray-800 dark:text-gray-200 font-semibold text-sm mb-2">
-        Email Address
+        {label}
       </Text>
       <View className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-xl px-4 border border-gray-200 dark:border-gray-700">
         <View className="mr-3 opacity-50">
-          <MaterialIcons name="email" size={18} color={colors.iconMuted} />
+          <MaterialIcons name={iconName} size={18} color={colors.iconMuted} />
         </View>
         <TextInput
+          ref={inputRef}
           className="flex-1 text-gray-800 dark:text-gray-100 text-sm py-4"
-          placeholder="name@example.com"
+          placeholder={placeholder}
           placeholderTextColor={colors.placeholder}
           value={value}
           onChangeText={onChangeText}
+          secureTextEntry={secureTextEntry && !showValue}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
-          returnKeyType="done"
-          blurOnSubmit
+          keyboardType={keyboardType}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          blurOnSubmit={returnKeyType === "done"}
         />
+        {secureTextEntry && (
+          <TouchableOpacity
+            onPress={() => setShowValue((prev) => !prev)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={showValue ? "eye-off-outline" : "eye-outline"}
+              size={18}
+              color={colors.iconEye}
+            />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -120,20 +164,44 @@ function InfoBox() {
         style={{ marginTop: 1 }}
       />
       <Text className="flex-1 text-brand-blue dark:text-blue-300 text-xs leading-5">
-        Check your spam or junk folder if you don't see the email within a few
-        minutes.
+        Make sure the email matches your registered account. Your password will
+        be changed immediately.
       </Text>
     </View>
   );
 }
 
-// ─── Send Link CTA ────────────────────────────────────────────────────────────
-function SendLinkCTA({ onPress }: { onPress?: () => void }) {
+// ─── Feedback banners ─────────────────────────────────────────────────────────
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <View className="mx-4 mt-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl px-4 py-3 flex-row items-start gap-2">
+      <MaterialIcons name="error-outline" size={16} color="#EF4444" style={{ marginTop: 1 }} />
+      <Text className="flex-1 text-red-600 dark:text-red-400 text-sm font-medium leading-5">
+        {message}
+      </Text>
+    </View>
+  );
+}
+
+function SuccessBanner({ message }: { message: string }) {
+  return (
+    <View className="mx-4 mt-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl px-4 py-3 flex-row items-start gap-2">
+      <MaterialIcons name="check-circle-outline" size={16} color="#22C55E" style={{ marginTop: 1 }} />
+      <Text className="flex-1 text-green-600 dark:text-green-400 text-sm font-medium leading-5">
+        {message}
+      </Text>
+    </View>
+  );
+}
+
+// ─── Reset Password CTA ───────────────────────────────────────────────────────
+function ResetCTA({ onPress, loading }: { onPress: () => void; loading: boolean }) {
   return (
     <View className="px-4 mt-5">
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={onPress}
+        disabled={loading}
         className="bg-brand-blue flex-row items-center justify-center gap-2 py-4 rounded-2xl"
         style={{
           shadowColor: "#2452FF",
@@ -141,10 +209,17 @@ function SendLinkCTA({ onPress }: { onPress?: () => void }) {
           shadowOpacity: 0.35,
           shadowRadius: 12,
           elevation: 8,
+          opacity: loading ? 0.75 : 1,
         }}
       >
-        <MaterialIcons name="send" size={18} color="white" />
-        <Text className="text-white font-bold text-base">Send Reset Link</Text>
+        {loading ? (
+          <ActivityIndicator color="#ffffff" size="small" />
+        ) : (
+          <>
+            <MaterialIcons name="lock-reset" size={18} color="white" />
+            <Text className="text-white font-bold text-base">Reset Password</Text>
+          </>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -179,32 +254,52 @@ function Footer() {
           <Text className="text-brand-blue font-bold">Sign up</Text>
         </Link>
       </Text>
-      <Text className="text-gray-400 dark:text-gray-600 text-xs text-center leading-5 px-4">
-        By continuing, you agree to our{" "}
-        <Text className="text-gray-500 dark:text-gray-400 underline">
-          Terms of Service
-        </Text>{" "}
-        and{" "}
-        <Text className="text-gray-500 dark:text-gray-400 underline">
-          Privacy Policy
-        </Text>
-        .
-      </Text>
     </View>
   );
 }
 
 // ─── Forget Password Screen ───────────────────────────────────────────────────
-// Android: softwareKeyboardLayoutMode="pan" in app.json handles keyboard
-// avoidance natively. No KeyboardAvoidingView needed.
-export default function ForgetPasswordScreen({
-  onSendLink,
-}: {
-  onSendLink?: (email: string) => void;
-}) {
+export default function ForgetPasswordScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { forgetPassword } = useAuth();
+
   const [email, setEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const newPassRef = useRef<TextInput>(null);
+  const confirmPassRef = useRef<TextInput>(null);
+
+  const handleReset = async () => {
+    setError(null);
+    setSuccessMessage(null);
+
+    if (!email.trim() || !newPassword || !confirmPassword) {
+      setError("All fields are required.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError("New password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // On success, AuthContext navigates to /(auth)/login automatically
+      await forgetPassword(email.trim(), newPassword, confirmPassword);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to reset password.");
+      setLoading(false);
+    }
+  };
 
   return (
     <ScrollView
@@ -218,9 +313,50 @@ export default function ForgetPasswordScreen({
         <HeroBanner />
         <SubHeadline />
         <Divider />
-        <EmailInput value={email} onChangeText={setEmail} isDark={isDark} />
+
+        {error && <ErrorBanner message={error} />}
+        {successMessage && <SuccessBanner message={successMessage} />}
+
+        <InputField
+          label="Email Address"
+          placeholder="name@example.com"
+          iconName="email"
+          value={email}
+          onChangeText={setEmail}
+          isDark={isDark}
+          keyboardType="email-address"
+          returnKeyType="next"
+          onSubmitEditing={() => newPassRef.current?.focus()}
+        />
+
+        <InputField
+          label="New Password"
+          placeholder="Min. 8 characters"
+          iconName="lock"
+          value={newPassword}
+          onChangeText={setNewPassword}
+          isDark={isDark}
+          secureTextEntry
+          returnKeyType="next"
+          onSubmitEditing={() => confirmPassRef.current?.focus()}
+          inputRef={newPassRef}
+        />
+
+        <InputField
+          label="Confirm New Password"
+          placeholder="Re-enter new password"
+          iconName="vpn-key"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          isDark={isDark}
+          secureTextEntry
+          returnKeyType="done"
+          onSubmitEditing={handleReset}
+          inputRef={confirmPassRef}
+        />
+
         <InfoBox />
-        <SendLinkCTA onPress={() => onSendLink?.(email)} />
+        <ResetCTA onPress={handleReset} loading={loading} />
         <BackToLogin />
       </View>
 
