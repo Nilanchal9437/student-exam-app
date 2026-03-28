@@ -22,7 +22,7 @@ import {
   View,
   useColorScheme,
 } from "react-native";
-import { changePassword, getProfile, updateProfile } from "../../lib/authService";
+import { changePassword, getProfile, updateProfile } from "../../lib/profileService";
 
 // ─── Theme helpers ────────────────────────────────────────────────────────────
 function useThemeColors(isDark: boolean) {

@@ -4,17 +4,22 @@ import {
   MaterialIcons,
 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Exam, fetchExams } from "../../lib/examService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type TagIconName = "school" | "devices" | "star" | "menu-book";
+type FilterTab = "all" | "free" | "premium";
+
+// ─── Level → icon mapping ─────────────────────────────────────────────────────
 type ExamIconName =
   | "book-open-variant"
   | "bank"
@@ -23,105 +28,21 @@ type ExamIconName =
   | "pencil-box-outline"
   | "flask-outline"
   | "calculator-variant-outline"
-  | "laptop";
+  | "laptop"
+  | "school-outline";
 
-type FilterTab = "all" | "locked" | "unlocked";
-
-export type ExamItem = {
-  id: string;
-  name: string;
-  price: string;
-  period: string;
-  tag: string;
-  tagIcon: TagIconName;
-  iconName: ExamIconName;
-  unlocked: boolean;
-};
-
-// ─── Initial Data ─────────────────────────────────────────────────────────────
-// Add or remove items here – the FlatList picks up changes automatically.
-const INITIAL_EXAMS: ExamItem[] = [
-  {
-    id: "bece",
-    name: "BECE",
-    price: "₦4,000",
-    period: "annual access",
-    tag: "JUNIOR SECONDARY",
-    tagIcon: "school",
-    iconName: "book-open-variant",
-    unlocked: false,
-  },
-  {
-    id: "jamb",
-    name: "JAMB (UTME)",
-    price: "₦8,000",
-    period: "annual access",
-    tag: "CBT PRACTICE MODE",
-    tagIcon: "devices",
-    iconName: "bank",
-    unlocked: false,
-  },
-  {
-    id: "waec",
-    name: "WAEC (WASSCE)",
-    price: "₦8,000",
-    period: "annual access",
-    tag: "PAST QUESTIONS & SOLUTIONS",
-    tagIcon: "star",
-    iconName: "head-check",
-    unlocked: false,
-  },
-  {
-    id: "neco",
-    name: "NECO (SSCE)",
-    price: "₦8,000",
-    period: "annual access",
-    tag: "EXAM SYLLABUS INCLUDED",
-    tagIcon: "menu-book",
-    iconName: "note-edit",
-    unlocked: true,
-  },
-  {
-    id: "gce",
-    name: "GCE (A-Level)",
-    price: "₦6,000",
-    period: "annual access",
-    tag: "ADVANCED LEVEL",
-    tagIcon: "school",
-    iconName: "pencil-box-outline",
-    unlocked: false,
-  },
-  {
-    id: "postutme",
-    name: "Post-UTME",
-    price: "₦5,000",
-    period: "annual access",
-    tag: "UNIVERSITY ENTRANCE",
-    tagIcon: "devices",
-    iconName: "laptop",
-    unlocked: false,
-  },
-  {
-    id: "science",
-    name: "Science Bowl",
-    price: "₦3,500",
-    period: "annual access",
-    tag: "STEM FOCUSED",
-    tagIcon: "star",
-    iconName: "flask-outline",
-    unlocked: true,
-  },
-  {
-    id: "math_olympiad",
-    name: "Math Olympiad",
-    price: "₦3,000",
-    period: "annual access",
-    tag: "ADVANCED MATHEMATICS",
-    tagIcon: "menu-book",
-    iconName: "calculator-variant-outline",
-    unlocked: false,
-  },
-];
+function iconForLevel(level: string): ExamIconName {
+  const map: Record<string, ExamIconName> = {
+    Primary: "school-outline",
+    JSS: "book-open-variant",
+    SS: "head-check",
+    JAMB: "bank",
+    WAEC: "note-edit",
+    NECO: "pencil-box-outline",
+    University: "laptop",
+  };
+  return map[level] ?? "flask-outline";
+}
 
 // ─── Premium Banner ───────────────────────────────────────────────────────────
 function PremiumBanner() {
@@ -137,69 +58,38 @@ function PremiumBanner() {
         elevation: 10,
       }}
     >
-      {/* Decorative circles */}
       <View
         style={{
-          position: "absolute",
-          top: -30,
-          right: -30,
-          width: 110,
-          height: 110,
-          borderRadius: 55,
+          position: "absolute", top: -30, right: -30,
+          width: 110, height: 110, borderRadius: 55,
           backgroundColor: "rgba(255,255,255,0.08)",
         }}
       />
       <View
         style={{
-          position: "absolute",
-          top: 20,
-          right: 30,
-          width: 60,
-          height: 60,
-          borderRadius: 30,
+          position: "absolute", top: 20, right: 30,
+          width: 60, height: 60, borderRadius: 30,
           backgroundColor: "rgba(255,255,255,0.06)",
         }}
       />
-
       <Text className="text-white text-xl font-bold mb-1">Premium Access</Text>
-      <Text
-        className="text-white/75 text-sm leading-5 mb-5"
-        style={{ maxWidth: 240 }}
-      >
-        Unlock unlimited practice tests and official past questions for your
-        upcoming examinations.
+      <Text className="text-white/75 text-sm leading-5 mb-5" style={{ maxWidth: 240 }}>
+        Unlock unlimited practice tests and official past questions for your upcoming examinations.
       </Text>
-
       <View className="self-start flex-row items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
         <Ionicons name="shield-checkmark-outline" size={14} color="white" />
-        <Text className="text-white text-xs font-semibold">
-          Secure Payment Processing
-        </Text>
+        <Text className="text-white text-xs font-semibold">Secure Payment Processing</Text>
       </View>
     </View>
   );
 }
 
 // ─── Search Bar ───────────────────────────────────────────────────────────────
-function SearchBar({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (text: string) => void;
-}) {
+function SearchBar({ value, onChange }: { value: string; onChange: (t: string) => void }) {
   return (
     <View
       className="mx-4 mt-4 flex-row items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-3 gap-3"
-      style={{
-        borderWidth: 1,
-        borderColor: "#E2E8F0",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 4,
-        elevation: 2,
-      }}
+      style={{ borderWidth: 1, borderColor: "#E2E8F0", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}
     >
       <Ionicons name="search-outline" size={18} color="#9CA3AF" />
       <TextInput
@@ -226,14 +116,12 @@ function SearchBar({
 // ─── Filter Tabs ──────────────────────────────────────────────────────────────
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
   { key: "all", label: "All Exams" },
-  { key: "unlocked", label: "Unlocked" },
-  { key: "locked", label: "Locked" },
+  { key: "free", label: "Free" },
+  { key: "premium", label: "Premium" },
 ];
 
 function FilterTabs({
-  active,
-  onSelect,
-  counts,
+  active, onSelect, counts,
 }: {
   active: FilterTab;
   onSelect: (tab: FilterTab) => void;
@@ -249,28 +137,16 @@ function FilterTabs({
             activeOpacity={0.8}
             onPress={() => onSelect(tab.key)}
             className="flex-row items-center gap-1.5 px-4 py-2 rounded-full"
-            style={{
-              backgroundColor: isActive ? "#2452FF" : "#F1F5F9",
-            }}
+            style={{ backgroundColor: isActive ? "#2452FF" : "#F1F5F9" }}
           >
-            <Text
-              className="text-xs font-semibold"
-              style={{ color: isActive ? "#fff" : "#6B7280" }}
-            >
+            <Text className="text-xs font-semibold" style={{ color: isActive ? "#fff" : "#6B7280" }}>
               {tab.label}
             </Text>
             <View
               className="rounded-full min-w-[18px] h-[18px] items-center justify-center px-1"
-              style={{
-                backgroundColor: isActive
-                  ? "rgba(255,255,255,0.25)"
-                  : "#E2E8F0",
-              }}
+              style={{ backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "#E2E8F0" }}
             >
-              <Text
-                className="text-[10px] font-bold"
-                style={{ color: isActive ? "#fff" : "#6B7280" }}
-              >
+              <Text className="text-[10px] font-bold" style={{ color: isActive ? "#fff" : "#6B7280" }}>
                 {counts[tab.key]}
               </Text>
             </View>
@@ -281,141 +157,99 @@ function FilterTabs({
   );
 }
 
-// ─── Section Header ───────────────────────────────────────────────────────────
-function SectionHeader({
-  title,
-  action,
-  onAction,
-}: {
-  title: string;
-  action?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View className="flex-row items-center justify-between px-4 mt-5 mb-3">
-      <Text className="text-gray-900 dark:text-white text-base font-bold">
-        {title}
-      </Text>
-      {action && (
-        <TouchableOpacity activeOpacity={0.7} onPress={onAction}>
-          <Text className="text-brand-blue text-sm font-semibold">
-            {action}
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
+// ─── Unlock stub (to be implemented later) ────────────────────────────────────
+function showUnlockAlert(name: string) {
+  Alert.alert(
+    "🔒 Premium Exam",
+    `"${name}" requires a premium subscription.\n\nUnlock functionality coming soon!`,
+    [{ text: "OK", style: "default" }]
   );
 }
 
-// ─── Tag Icon ─────────────────────────────────────────────────────────────────
-const TAG_ICON_MAP: Record<TagIconName, React.ReactNode> = {
-  school: <MaterialIcons name="school" size={12} color="#6B7280" />,
-  devices: <MaterialIcons name="devices" size={12} color="#6B7280" />,
-  star: <MaterialIcons name="star-border" size={12} color="#6B7280" />,
-  "menu-book": <MaterialIcons name="menu-book" size={12} color="#6B7280" />,
-};
-
 // ─── Exam Card ────────────────────────────────────────────────────────────────
-function ExamCard({
-  exam,
-  onUnlock,
-}: {
-  exam: ExamItem;
-  onUnlock: (id: string) => void;
-}) {
-  const [pressed, setPressed] = useState(false);
+function ExamCard({ exam }: { exam: Exam }) {
   const router = useRouter();
+  const [pressed, setPressed] = useState(false);
+  const isFree = !exam.isPremium;
+  const icon = iconForLevel(exam.level);
 
   return (
     <View
       className="mx-4 mb-3 bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 flex-row items-center"
       style={{
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
+        shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
         borderWidth: 1,
-        borderColor: exam.unlocked ? "#DCFCE7" : "#F1F5F9",
+        borderColor: isFree ? "#DCFCE7" : "#F1F5F9",
+        opacity: isFree ? 1 : 0.85,
       }}
     >
       {/* Icon */}
       <View
         className="w-14 h-14 rounded-2xl items-center justify-center"
-        style={{
-          backgroundColor: exam.unlocked ? "#DCFCE7" : "#EEF1FF",
-        }}
+        style={{ backgroundColor: isFree ? "#DCFCE7" : "#F3F4F6" }}
       >
+        {/* Dim the icon for locked exams */}
         <MaterialCommunityIcons
-          name={exam.iconName}
+          name={isFree ? icon : "lock"}
           size={26}
-          color={exam.unlocked ? "#16A34A" : "#2452FF"}
+          color={isFree ? "#16A34A" : "#9CA3AF"}
         />
       </View>
 
       {/* Info */}
       <View className="flex-1 ml-3">
-        <View className="flex-row items-center gap-2 mb-0.5">
-          <Text className="text-gray-900 dark:text-white font-bold text-base leading-tight">
-            {exam.name}
-          </Text>
-          {exam.unlocked && (
+        <View className="flex-row items-center gap-2 mb-0.5 flex-wrap">
+          <Text className="text-gray-900 dark:text-white font-bold text-base leading-tight">{exam.name}</Text>
+          {isFree ? (
             <View className="bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded-full">
-              <Text className="text-green-600 dark:text-green-400 text-[10px] font-bold uppercase tracking-wide">
-                Active
-              </Text>
+              <Text className="text-green-600 dark:text-green-400 text-[10px] font-bold uppercase tracking-wide">Free</Text>
+            </View>
+          ) : (
+            <View className="bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-full flex-row items-center gap-1">
+              <Ionicons name="lock-closed" size={9} color="#D97706" />
+              <Text className="text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wide">Premium</Text>
             </View>
           )}
         </View>
 
-        {/* Price */}
-        <View className="flex-row items-baseline gap-1 mb-1.5">
-          <Text
-            className="font-bold text-sm"
-            style={{ color: exam.unlocked ? "#16A34A" : "#2452FF" }}
-          >
-            {exam.price}
-          </Text>
-          <Text className="text-gray-400 dark:text-gray-500 text-xs font-medium">
-            / {exam.period}
-          </Text>
-        </View>
-
-        {/* Tag */}
-        <View className="flex-row items-center gap-1">
-          {TAG_ICON_MAP[exam.tagIcon]}
+        {/* Level tag */}
+        <View className="flex-row items-center gap-1 mt-1">
+          <MaterialIcons name="school" size={12} color="#6B7280" />
           <Text className="text-gray-500 dark:text-gray-400 text-xs font-semibold tracking-wide uppercase">
-            {exam.tag}
+            {exam.level}
           </Text>
         </View>
       </View>
 
-      {/* Action button */}
-      {exam.unlocked ? (
+      {/* Action — free: Start | premium: Locked */}
+      {isFree ? (
         <TouchableOpacity
           activeOpacity={0.85}
+          onPressIn={() => setPressed(true)}
+          onPressOut={() => setPressed(false)}
           onPress={() =>
             router.push({
               pathname: "/(main)/test",
-              params: { examId: exam.id, examName: exam.name },
+              params: { examId: exam._id, examName: exam.name },
             })
           }
-          className="rounded-xl py-2.5 px-4 flex-row items-center gap-1.5 bg-green-500"
+          className="rounded-xl py-2.5 px-4 flex-row items-center gap-1.5"
+          style={{ backgroundColor: pressed ? "#15803D" : "#16A34A" }}
         >
           <Ionicons name="play" size={13} color="white" />
           <Text className="text-white font-bold text-sm">Start</Text>
         </TouchableOpacity>
       ) : (
+        // TODO: replace with real payment/unlock flow
         <TouchableOpacity
-          activeOpacity={0.85}
-          onPressIn={() => setPressed(true)}
-          onPressOut={() => setPressed(false)}
-          onPress={() => onUnlock(exam.id)}
+          activeOpacity={0.75}
+          onPress={() => showUnlockAlert(exam.name)}
           className="rounded-xl py-2.5 px-4 flex-row items-center gap-1.5"
-          style={{ backgroundColor: pressed ? "#1a3fd4" : "#2452FF" }}
+          style={{ backgroundColor: "#E5E7EB" }}
         >
-          <Ionicons name="lock-closed" size={13} color="white" />
-          <Text className="text-white font-bold text-sm">Unlock</Text>
+          <Ionicons name="lock-closed" size={13} color="#6B7280" />
+          <Text className="font-bold text-sm" style={{ color: "#6B7280" }}>Locked</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -423,105 +257,120 @@ function ExamCard({
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
-function EmptyState({ query }: { query: string }) {
+function EmptyState({ query, error, onRetry }: { query: string; error: string | null; onRetry: () => void }) {
   return (
     <View className="flex-1 items-center justify-center py-16 px-8">
       <View className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center mb-4">
-        <Ionicons name="search-outline" size={28} color="#9CA3AF" />
+        <Ionicons name={error ? "cloud-offline-outline" : "search-outline"} size={28} color="#9CA3AF" />
       </View>
       <Text className="text-gray-900 dark:text-white font-bold text-base text-center mb-1">
-        No results found
+        {error ? "Failed to load exams" : "No results found"}
       </Text>
-      <Text className="text-gray-400 dark:text-gray-500 text-sm text-center leading-5">
-        {query.length > 0
-          ? `No examinations matched "${query}". Try a different search term.`
-          : "No examinations match the selected filter."}
+      <Text className="text-gray-400 dark:text-gray-500 text-sm text-center leading-5 mb-4">
+        {error ?? (query.length > 0 ? `No exams matched "${query}".` : "No exams match the selected filter.")}
       </Text>
+      {error && (
+        <TouchableOpacity
+          onPress={onRetry}
+          className="bg-brand-blue px-6 py-3 rounded-xl"
+        >
+          <Text className="text-white font-bold text-sm">Retry</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
-// ─── Exam Screen ─────────────────────────────────────────────────────────────
+// ─── Exam Screen ──────────────────────────────────────────────────────────────
 export default function ExamScreen() {
-  const [exams, setExams] = useState<ExamItem[]>(INITIAL_EXAMS);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
 
-  // Live-filter the exam list whenever search or tab changes
+  const loadExams = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchExams();
+      setExams(res.data.exams);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? (err as { message: string }).message
+          : "Failed to load exams.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadExams(); }, [loadExams]);
+
+  // Client-side filter + search
   const filtered = useMemo(() => {
     let list = exams;
-
-    if (activeFilter === "unlocked") list = list.filter((e) => e.unlocked);
-    if (activeFilter === "locked") list = list.filter((e) => !e.unlocked);
-
+    if (activeFilter === "free") list = list.filter((e) => !e.isPremium);
+    if (activeFilter === "premium") list = list.filter((e) => e.isPremium);
     if (search.trim().length > 0) {
       const q = search.trim().toLowerCase();
       list = list.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) || e.tag.toLowerCase().includes(q),
+        (e) => e.name.toLowerCase().includes(q) || e.level.toLowerCase().includes(q)
       );
     }
-
     return list;
   }, [exams, search, activeFilter]);
 
-  // Counts for filter tab badges
   const counts = useMemo<Record<FilterTab, number>>(
     () => ({
       all: exams.length,
-      unlocked: exams.filter((e) => e.unlocked).length,
-      locked: exams.filter((e) => !e.unlocked).length,
+      free: exams.filter((e) => !e.isPremium).length,
+      premium: exams.filter((e) => e.isPremium).length,
     }),
-    [exams],
+    [exams]
   );
 
-  // Toggle unlock state dynamically
-  const handleUnlock = useCallback((id: string) => {
-    setExams((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, unlocked: true } : e)),
+  const ListHeader = (
+    <>
+      <PremiumBanner />
+      <SearchBar value={search} onChange={setSearch} />
+      <FilterTabs active={activeFilter} onSelect={setActiveFilter} counts={counts} />
+      <View className="flex-row items-center justify-between px-4 mt-5 mb-3">
+        <Text className="text-gray-900 dark:text-white text-base font-bold">
+          Available Examinations
+        </Text>
+        <Text className="text-gray-400 dark:text-gray-500 text-xs font-semibold">
+          {filtered.length} exam{filtered.length !== 1 ? "s" : ""}
+        </Text>
+      </View>
+    </>
+  );
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-gray-50 dark:bg-gray-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#2452FF" />
+        <Text className="text-gray-400 dark:text-gray-500 text-sm mt-3">Loading exams…</Text>
+      </View>
     );
-  }, []);
-
-  // FlatList list header (banner + search + filters + section title)
-  const ListHeader = useMemo(
-    () => (
-      <>
-        <PremiumBanner />
-        <SearchBar value={search} onChange={setSearch} />
-        <FilterTabs
-          active={activeFilter}
-          onSelect={setActiveFilter}
-          counts={counts}
-        />
-        <SectionHeader
-          title="Available Examinations"
-          action="View History"
-          onAction={() => {}}
-        />
-      </>
-    ),
-    [search, activeFilter, counts],
-  );
+  }
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
-      {ListHeader}
       <FlatList
         data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ExamCard exam={item} onUnlock={handleUnlock} />
-        )}
-        ListEmptyComponent={<EmptyState query={search} />}
+        keyExtractor={(item) => item._id}
+        renderItem={({ item }) => <ExamCard exam={item} />}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={<EmptyState query={search} error={error} onRetry={loadExams} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        className="flex-1 bg-gray-50 dark:bg-gray-900"
-        // Performance optimisations
         removeClippedSubviews
-        initialNumToRender={6}
-        maxToRenderPerBatch={8}
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
         windowSize={10}
       />
     </View>

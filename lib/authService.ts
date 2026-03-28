@@ -1,20 +1,16 @@
 /**
  * lib/authService.ts
- * Strongly-typed wrappers around the auth endpoints exposed by student-app-backend.
- *
- * Endpoints (base: /api/users):
- *   POST /register       { fullName, email, password }
- *   POST /login          { email, password }
- *   POST /forget-password { email }
- *   GET  /profile        — protected
- *   PUT  /profile        — protected
- *   PUT  /change-password — protected
+ * Authentication only — register, login, forget-password.
+ * All other domain services live in separate files:
+ *   profileService.ts  — get/update profile, change password
+ *   examService.ts     — exam listing & detail
+ *   testService.ts     — exam questions (MCQ)
+ *   resultService.ts   — submit & fetch results
  */
 
 import apiClient from "./apiClient";
 
-// ─── Shared types ─────────────────────────────────────────────────────────────
-
+// ─── Shared types (re-exported for convenience) ───────────────────────────────
 export interface UserProfile {
   _id: string;
   fullName: string;
@@ -35,6 +31,11 @@ export interface AuthResponse {
     accessToken: string;
     refreshToken: string;
   };
+}
+
+export interface MessageResponse {
+  success: boolean;
+  message: string;
 }
 
 export interface ApiError {
@@ -65,16 +66,12 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   return data;
 }
 
-// ─── Forget Password (direct reset — no email sending) ───────────────────────
+// ─── Forget / Reset Password ──────────────────────────────────────────────────
+// No email link — user enters email + new password directly.
 export interface ForgetPasswordPayload {
   email: string;
   newPassword: string;
   confirmPassword: string;
-}
-
-export interface MessageResponse {
-  success: boolean;
-  message: string;
 }
 
 export async function forgetPassword(
@@ -84,42 +81,5 @@ export async function forgetPassword(
     "/users/forget-password",
     payload
   );
-  return data;
-}
-
-
-// ─── Get Profile ──────────────────────────────────────────────────────────────
-export async function getProfile(): Promise<{ success: boolean; data: { user: UserProfile } }> {
-  const { data } = await apiClient.get("/users/profile");
-  return data;
-}
-
-// ─── Update Profile ───────────────────────────────────────────────────────────
-export interface UpdateProfilePayload {
-  fullName?: string;
-  email?: string;
-  phone?: string;
-  className?: string;
-  avatar?: string;
-}
-
-export async function updateProfile(
-  payload: UpdateProfilePayload
-): Promise<{ success: boolean; message: string; data: { user: UserProfile } }> {
-  const { data } = await apiClient.put("/users/profile", payload);
-  return data;
-}
-
-// ─── Change Password ──────────────────────────────────────────────────────────
-export interface ChangePasswordPayload {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
-export async function changePassword(
-  payload: ChangePasswordPayload
-): Promise<MessageResponse> {
-  const { data } = await apiClient.put("/users/change-password", payload);
   return data;
 }
