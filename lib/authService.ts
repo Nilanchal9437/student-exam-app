@@ -13,6 +13,7 @@ import apiClient from "./apiClient";
 // ─── Shared types (re-exported for convenience) ───────────────────────────────
 export interface UserProfile {
   _id: string;
+  id: string;
   fullName: string;
   email: string;
   phone?: string;
@@ -50,8 +51,13 @@ export interface RegisterPayload {
   password: string;
 }
 
-export async function register(payload: RegisterPayload): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>("/users/register", payload);
+export async function register(
+  payload: RegisterPayload,
+): Promise<AuthResponse> {
+  const { data } = await apiClient.post<AuthResponse>(
+    "/users/register",
+    payload,
+  );
   return data;
 }
 
@@ -75,11 +81,11 @@ export interface ForgetPasswordPayload {
 }
 
 export async function forgetPassword(
-  payload: ForgetPasswordPayload
+  payload: ForgetPasswordPayload,
 ): Promise<MessageResponse> {
   const { data } = await apiClient.post<MessageResponse>(
     "/users/forget-password",
-    payload
+    payload,
   );
   return data;
 }
