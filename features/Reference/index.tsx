@@ -100,12 +100,45 @@ function BalanceCard({ referralCoins }: { referralCoins: number }) {
 
 // ─── Referral Link Card (matches white card style in Subject/Exam) ─────────────
 function ReferralLinkCard({ userId }: { userId?: string }) {
-  // Generate both deep link and web fallback
-  // Deep link: studenexamapp://ref/{userId} - opens app directly
-  // Generate referral links based on environment (dev vs production)
-  const referralLinks = userId 
-    ? generateReferralLink(userId)
-    : generateReferralLink("your-user-id");
+  const [referralLinks, setReferralLinks] = React.useState<{
+    deepLink: string;
+    webLink: string;
+    displayLink: string;
+  } | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadReferralLink = async () => {
+      try {
+        const links = await generateReferralLink(userId || "your-user-id");
+        if (isMounted) {
+          setReferralLinks(links);
+        }
+      } catch (error) {
+        console.error("Failed to generate referral link:", error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadReferralLink();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
+  if (!referralLinks) {
+    return (
+      <View className="mx-4 mt-5 bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+        <ActivityIndicator size="small" color="#2452FF" />
+      </View>
+    );
+  }
 
   const displayLink = referralLinks.displayLink;
   const deepLink = referralLinks.deepLink;
