@@ -32,7 +32,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (fullName: string, email: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string, referrerId?: string) => Promise<void>;
   forgetPassword: (email: string, newPassword: string, confirmPassword: string) => Promise<string>;
   logout: () => Promise<void>;
   /** Call after a successful PUT /profile to sync new user data globally */
@@ -107,9 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Register ────────────────────────────────────────────────────────────────
   // After successful signup, redirect to login — user must sign in manually.
   const register = useCallback(
-    async (fullName: string, email: string, password: string) => {
+    async (fullName: string, email: string, password: string, referrerId?: string) => {
       try {
-        await apiRegister({ fullName, email, password });
+        await apiRegister({ fullName, email, password, referrerId });
         router.replace("/(auth)/login");
       } catch (err) {
         throw new Error(extractErrorMessage(err, "Registration failed. Please try again."));

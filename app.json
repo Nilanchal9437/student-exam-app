@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nilanchal.studenexamapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -51,7 +52,9 @@
       "router": {},
       "eas": {
         "projectId": "1132ab7f-5953-4862-911a-82ae68d1bd98"
-      }
+      },
+      "expoProjectOwner": "nilanchal",
+      "appSlug": "studen-exam-app"
     }
   }
 }

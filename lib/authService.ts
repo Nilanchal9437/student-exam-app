@@ -49,6 +49,7 @@ export interface RegisterPayload {
   fullName: string;
   email: string;
   password: string;
+  referrerId?: string; // Optional referral from deep link
 }
 
 export async function register(

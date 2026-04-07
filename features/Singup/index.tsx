@@ -5,6 +5,7 @@
  */
 
 import { useAuth } from "@/context/AuthContext";
+import { useReferral } from "@/hooks/use-referral";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import React, { useState } from "react";
@@ -152,6 +153,18 @@ function ErrorBanner({ message }: { message: string }) {
   );
 }
 
+// ─── Referral Banner ──────────────────────────────────────────────────────────
+function ReferralBanner({ referrerId }: { referrerId: string }) {
+  return (
+    <View className="mx-4 mt-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl px-4 py-3 flex-row items-center gap-2">
+      <Ionicons name="gift-outline" size={16} color="#16A34A" />
+      <Text className="flex-1 text-green-600 dark:text-green-400 text-sm font-medium">
+        You'll earn rewards when you complete signup!
+      </Text>
+    </View>
+  );
+}
+
 // ─── Create Account CTA ───────────────────────────────────────────────────────
 function CreateAccountCTA({
   onPress,
@@ -211,6 +224,7 @@ export default function SignupScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { register } = useAuth();
+  const { referrerId, isLoading: referralLoading } = useReferral();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -233,7 +247,8 @@ export default function SignupScreen() {
     setError(null);
     setLoading(true);
     try {
-      await register(fullName.trim(), email.trim(), password);
+      // Pass referrerId if user came from a referral link
+      await register(fullName.trim(), email.trim(), password, referrerId || undefined);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed.");
     } finally {
@@ -254,6 +269,7 @@ export default function SignupScreen() {
         <SubHeadline />
 
         {error && <ErrorBanner message={error} />}
+        {referrerId && !referralLoading && <ReferralBanner referrerId={referrerId} />}
 
         <InputField
           label="Full Name"

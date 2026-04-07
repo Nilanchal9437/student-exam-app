@@ -11,13 +11,23 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-// Use your machine's LAN IP so Expo Go / physical devices can reach the backend.
+// API Base URL configuration
 //
-// Scenarios:
-//   Android Emulator only  → "http://10.0.2.2:5000/api"
-//   Physical device / Expo Go (current) → "http://192.168.31.208:5000/api"
-//   iOS Simulator          → "http://localhost:5000/api"
-export const API_BASE_URL = "http://192.168.31.208:5000/api";
+// Uses Vercel production URL, with fallback to local IP for development
+//
+// Environment scenarios:
+//   Production (Published App) → "https://student-app-backend-two.vercel.app/api"
+//   Development (Expo Go)      → "http://192.168.31.208:5000/api" (fallback)
+//   Android Emulator           → "http://10.0.2.2:5000/api"
+//   iOS Simulator              → "http://localhost:5000/api"
+//
+// To use local backend during development, temporarily uncomment the local URL below
+
+// Production URL (Vercel)
+export const API_BASE_URL = "https://student-app-backend-two.vercel.app/api";
+
+// For local development, uncomment this instead:
+// export const API_BASE_URL = "http://192.168.31.208:5000/api";
 
 // Storage keys — keep in sync with authContext
 export const STORAGE_KEYS = {
@@ -27,9 +37,10 @@ export const STORAGE_KEYS = {
 } as const;
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
+// Timeout increased to 20s for Vercel cold starts and network latency
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10_000,
+  timeout: 20_000, // 20 seconds (Vercel may have cold start delays)
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",

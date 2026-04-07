@@ -1,45 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  Alert,
+  Share,
+} from "react-native";
+import {
+  fetchReceivedReferences,
+  Reference,
+  RelationshipType,
+} from "../../lib/referenceService";
+import { fetchReferralStats } from "../../lib/referralService";
+import { generateReferralLink } from "../../lib/appConfig";
+import { useAuth } from "../../context/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Referral = {
-  id: string;
-  name: string;
-  dateTime: string;
-  amount: string;
-  status: "Paid" | "Pending";
-};
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-const REFERRAL_LINK = "refer.app/u/vip-user-2024";
-
-const REFERRALS: Referral[] = [
-  {
-    id: "1",
-    name: "Adekunle Johnson",
-    dateTime: "Oct 24, 2023 · 10:45 AM",
-    amount: "+ ₦200",
-    status: "Paid",
-  },
-  {
-    id: "2",
-    name: "Chioma Eze",
-    dateTime: "Oct 23, 2023 · 08:12 PM",
-    amount: "+ ₦200",
-    status: "Paid",
-  },
-  {
-    id: "3",
-    name: "Musa Ibrahim",
-    dateTime: "Oct 24, 2023 · 12:30 PM",
-    amount: "₦0.00",
-    status: "Pending",
-  },
-];
+// Using Reference type from referenceService
 
 // ─── Balance Card (matches VIPBanner / UpgradeBanner pattern) ─────────────────
-function BalanceCard() {
+function BalanceCard({ referralCoins }: { referralCoins: number }) {
+  // Convert coins to currency (assuming 100 coins = ₦200 or adjust as needed)
+  const currencyAmount = (referralCoins * 2).toLocaleString("en-NG");
+  
   return (
     <View
       className="mx-4 mt-4 rounded-2xl px-5 py-5 overflow-hidden"
@@ -79,32 +66,32 @@ function BalanceCard() {
       {/* Badge — identical to Subject/Exam/Community UpgradeBanner badge */}
       <View className="self-start bg-white/20 px-[10px] py-1 rounded-full mb-3">
         <Text className="text-white text-[10px] font-bold uppercase tracking-widest">
-          Total Balance
+          Referral Coins
         </Text>
       </View>
 
       {/* Balance amount — matches "Upgrade to VIP" text-2xl font-bold in VIPBanner */}
       <Text className="text-white text-3xl font-extrabold mb-1">
-        ₦25,400.00
+        {referralCoins} pts
       </Text>
 
       {/* Earning stats row — matches VIPBanner subtitle + CTA row */}
       <Text className="text-white/75 text-sm leading-5 mb-4">
-        Earn ₦200 for every successful VIP referral you make.
+        Earn 200 coins for every successful referral signup.
       </Text>
 
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-1.5 flex-1">
           <Ionicons name="trending-up-outline" size={14} color="rgba(255,255,255,0.7)" />
           <Text className="text-white/70 text-xs font-semibold">
-            ₦200 / VIP upgrade
+            200 coins / referral
           </Text>
         </View>
         <TouchableOpacity
           activeOpacity={0.88}
           className="bg-white rounded-xl px-5 py-2.5 items-center"
         >
-          <Text className="text-brand-blue font-bold text-sm">Withdraw</Text>
+          <Text className="text-brand-blue font-bold text-sm">Coming Soon</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -112,7 +99,31 @@ function BalanceCard() {
 }
 
 // ─── Referral Link Card (matches white card style in Subject/Exam) ─────────────
-function ReferralLinkCard() {
+function ReferralLinkCard({ userId }: { userId?: string }) {
+  // Generate both deep link and web fallback
+  // Deep link: studenexamapp://ref/{userId} - opens app directly
+  // Generate referral links based on environment (dev vs production)
+  const referralLinks = userId 
+    ? generateReferralLink(userId)
+    : generateReferralLink("your-user-id");
+
+  const displayLink = referralLinks.displayLink;
+  const deepLink = referralLinks.deepLink;
+  const webLink = referralLinks.webLink;
+
+  const handleShareLink = async () => {
+    try {
+      // Share with both deep link and web fallback
+      await Share.share({
+        message: `Join me on Student Exam App! Download it now and use this link: ${deepLink}`,
+        url: webLink, // iOS will use this if available
+        title: "Join Student Exam App",
+      });
+    } catch (err) {
+      Alert.alert("Share Error", "Failed to share referral link");
+    }
+  };
+
   return (
     <View
       className="mx-4 mt-5 bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700"
@@ -130,27 +141,28 @@ function ReferralLinkCard() {
           <Ionicons name="star" size={16} color="#EAB308" />
         </View>
         <Text className="text-gray-900 dark:text-white text-base font-bold">
-          VIP Referral Link
+          Referral Link
         </Text>
       </View>
 
-      {/* Link + copy button */}
+      {/* Link + share button */}
       <View className="flex-row items-center gap-3">
         <View className="flex-1 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-3">
-          <Text className="text-gray-600 dark:text-gray-300 text-sm font-semibold">
-            {REFERRAL_LINK}
+          <Text className="text-gray-600 dark:text-gray-300 text-xs font-semibold break-words">
+            {displayLink}
           </Text>
         </View>
         <TouchableOpacity
           activeOpacity={0.8}
+          onPress={handleShareLink}
           className="w-11 h-11 rounded-xl bg-brand-blue/10 items-center justify-center"
         >
-          <Ionicons name="copy-outline" size={20} color="#2452FF" />
+          <Ionicons name="share-social-outline" size={20} color="#2452FF" />
         </TouchableOpacity>
       </View>
 
       <Text className="text-gray-400 dark:text-gray-500 text-xs mt-3 leading-5">
-        Share this link to earn ₦200 for every successful VIP upgrade.
+        When someone opens this link and signs up, you earn coins! Share with friends to earn rewards.
       </Text>
     </View>
   );
@@ -160,14 +172,19 @@ function ReferralLinkCard() {
 function ReferralTabs({
   active,
   onChange,
+  totalActive,
+  totalInactive,
 }: {
-  active: "Paid" | "Pending";
-  onChange: (tab: "Paid" | "Pending") => void;
+  active: "Active" | "Inactive";
+  onChange: (tab: "Active" | "Inactive") => void;
+  totalActive: number;
+  totalInactive: number;
 }) {
   return (
     <View className="mx-4 mt-4 flex-row bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-1">
-      {(["Paid", "Pending"] as const).map((tab) => {
+      {(["Active", "Inactive"] as const).map((tab) => {
         const isActive = active === tab;
+        const count = tab === "Active" ? totalActive : totalInactive;
         return (
           <TouchableOpacity
             key={tab}
@@ -184,7 +201,7 @@ function ReferralTabs({
                   : "text-gray-600 dark:text-gray-300"
               }`}
             >
-              {tab === "Paid" ? "Paid (32)" : "Pending (16)"}
+              {tab} ({count})
             </Text>
           </TouchableOpacity>
         );
@@ -194,8 +211,22 @@ function ReferralTabs({
 }
 
 // ─── Referral Row (matches RankRow / ExamCard card pattern) ────────────────────
-function ReferralRow({ item }: { item: Referral }) {
-  const isPaid = item.status === "Paid";
+function ReferralRow({ item }: { item: Reference }) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const isPaid = true; // Default to paid status
 
   return (
     <View
@@ -225,38 +256,38 @@ function ReferralRow({ item }: { item: Referral }) {
         </View>
         <View className="flex-1">
           <Text className="text-gray-900 dark:text-white text-sm font-bold leading-5">
-            {item.name}
+            {item.referrer.fullName}
           </Text>
           <Text className="text-gray-400 dark:text-gray-500 text-xs mt-0.5">
-            {item.dateTime}
+            {formatDate(item.createdAt)}
           </Text>
         </View>
       </View>
 
-      {/* Amount + status badge */}
+      {/* Rating + badge */}
       <View className="items-end gap-1.5">
         <Text
           className={`text-base font-extrabold ${
             isPaid ? "text-green-600" : "text-gray-400 dark:text-gray-500"
           }`}
         >
-          {item.amount}
+          ★ {item.rating}
         </Text>
         <View
           className={`px-2.5 py-0.5 rounded-full ${
-            isPaid
+            item.isActive
               ? "bg-green-100 dark:bg-green-900/30"
-              : "bg-yellow-100 dark:bg-yellow-900/30"
+              : "bg-gray-100 dark:bg-gray-900/30"
           }`}
         >
           <Text
             className={`text-[10px] font-bold uppercase tracking-wide ${
-              isPaid
+              item.isActive
                 ? "text-green-600 dark:text-green-300"
-                : "text-yellow-700 dark:text-yellow-300"
+                : "text-gray-500 dark:text-gray-400"
             }`}
           >
-            {item.status}
+            {item.isActive ? "Active" : "Inactive"}
           </Text>
         </View>
       </View>
@@ -266,8 +297,88 @@ function ReferralRow({ item }: { item: Referral }) {
 
 // ─── Reference Screen ─────────────────────────────────────────────────────────
 export default function ReferenceScreen() {
-  const [activeTab, setActiveTab] = useState<"Paid" | "Pending">("Paid");
-  const visibleReferrals = REFERRALS.filter((item) => item.status === activeTab);
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<"Active" | "Inactive">("Active");
+  const [references, setReferences] = useState<Reference[]>([]);
+  const [referralCoins, setReferralCoins] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch references and referral stats from API
+  const loadReferences = useCallback(async () => {
+    try {
+      setError(null);
+      // Fetch both references and referral stats in parallel
+      const [referencesRes, statsRes] = await Promise.all([
+        fetchReceivedReferences({
+          page: 1,
+          limit: 50,
+        }),
+        fetchReferralStats(),
+      ]);
+
+      if (referencesRes.success) {
+        setReferences(referencesRes.data.references);
+      }
+
+      if (statsRes.success) {
+        setReferralCoins(statsRes.data.referralCoins);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data");
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [referencesRes, statsRes] = await Promise.all([
+        fetchReceivedReferences({
+          page: 1,
+          limit: 50,
+        }),
+        fetchReferralStats(),
+      ]);
+
+      if (referencesRes.success) {
+        setReferences(referencesRes.data.references);
+      }
+
+      if (statsRes.success) {
+        setReferralCoins(statsRes.data.referralCoins);
+      }
+    } catch (err) {
+      console.error("Error refreshing data:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Load data on mount
+  useEffect(() => {
+    loadReferences();
+  }, [loadReferences]);
+
+  // Filter references by active status
+  const filteredReferences = references.filter(
+    (item) => item.isActive === (activeTab === "Active")
+  );
+
+  const totalActive = references.filter((item) => item.isActive).length;
+  const totalInactive = references.filter((item) => !item.isActive).length;
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-gray-50 dark:bg-gray-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#2452FF" />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -275,9 +386,16 @@ export default function ReferenceScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
         className="flex-1"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#2452FF"
+          />
+        }
       >
         {/* Balance banner — same elevation/colour as other blue banners */}
-        <BalanceCard />
+        <BalanceCard referralCoins={referralCoins} />
 
         {/* Minimum withdrawal note — matches text-xs muted label style */}
         <Text className="text-center text-gray-500 dark:text-gray-400 mt-3 text-xs font-semibold">
@@ -286,36 +404,62 @@ export default function ReferenceScreen() {
         </Text>
 
         {/* Referral link card */}
-        <ReferralLinkCard />
+        <ReferralLinkCard userId={user?.id} />
 
         {/* Section header — matches SectionHeader in Home / Exam */}
         <View className="flex-row items-center justify-between px-4 mt-6 mb-1">
           <Text className="text-gray-900 dark:text-white text-lg font-bold">
-            Your Referrals
+            Your References
           </Text>
           <Text className="text-gray-500 dark:text-gray-400 text-sm font-semibold">
-            48 Total
+            {references.length} Total
           </Text>
         </View>
 
         {/* Tab filter — matches tab pill style across app */}
-        <ReferralTabs active={activeTab} onChange={setActiveTab} />
+        <ReferralTabs
+          active={activeTab}
+          onChange={setActiveTab}
+          totalActive={totalActive}
+          totalInactive={totalInactive}
+        />
 
-        {/* Referral list rows */}
-        {visibleReferrals.map((item) => (
-          <ReferralRow key={item.id} item={item} />
+        {/* Error message */}
+        {error && (
+          <View className="mx-4 mt-4 bg-red-50 dark:bg-red-900/20 rounded-xl p-3 border border-red-200 dark:border-red-800">
+            <Text className="text-red-600 dark:text-red-300 text-sm">
+              {error}
+            </Text>
+          </View>
+        )}
+
+        {/* Empty state */}
+        {filteredReferences.length === 0 && !error && (
+          <View className="mx-4 mt-6 items-center justify-center py-8">
+            <Ionicons name="star-outline" size={40} color="#9CA3AF" />
+            <Text className="text-gray-500 dark:text-gray-400 text-sm font-semibold mt-3">
+              No {activeTab.toLowerCase()} references yet
+            </Text>
+          </View>
+        )}
+
+        {/* Reference list rows */}
+        {filteredReferences.map((item) => (
+          <ReferralRow key={item._id} item={item} />
         ))}
 
         {/* "View All" link — matches "View Full Ranking" link in Home */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          className="mt-5 items-center justify-center py-3 mx-4 flex-row gap-1.5"
-        >
-          <Text className="text-brand-blue text-sm font-semibold">
-            View All Referrals
-          </Text>
-          <Ionicons name="arrow-forward" size={14} color="#2452FF" />
-        </TouchableOpacity>
+        {filteredReferences.length > 0 && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            className="mt-5 items-center justify-center py-3 mx-4 flex-row gap-1.5"
+          >
+            <Text className="text-brand-blue text-sm font-semibold">
+              View All References
+            </Text>
+            <Ionicons name="arrow-forward" size={14} color="#2452FF" />
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
