@@ -55,6 +55,12 @@
       },
       "expoProjectOwner": "nilanchal",
       "appSlug": "studen-exam-app"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1132ab7f-5953-4862-911a-82ae68d1bd98"
     }
   }
 }
