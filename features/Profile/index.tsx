@@ -1,8 +1,9 @@
 /**
  * features/Profile/index.tsx
  *
- * Personal Info section  → PUT /api/users/profile
- * Security section       → PUT /api/users/change-password
+ * Personal Info section     → PUT /api/users/profile
+ * Security section          → PUT /api/users/change-password
+ * Bank Account section      → PUT /api/users/bank-account
  *
  * On mount the current user is loaded from AuthContext (restored from
  * AsyncStorage). A fresh copy is also fetched from GET /api/users/profile
@@ -23,6 +24,7 @@ import {
   useColorScheme,
 } from "react-native";
 import { changePassword, getProfile, updateProfile } from "../../lib/profileService";
+import { getBankAccount, updateBankAccount } from "../../lib/bankAccountService";
 
 // ─── Theme helpers ────────────────────────────────────────────────────────────
 function useThemeColors(isDark: boolean) {
@@ -251,8 +253,7 @@ function FooterHint() {
         style={{ marginTop: 1 }}
       />
       <Text className="flex-1 text-brand-blue dark:text-blue-300 text-xs leading-5">
-        Keep your profile details up to date so you can receive exam alerts and
-        important class notifications.
+        Keep your profile and bank details up to date so you can receive exam alerts, class notifications, and process payments seamlessly.
       </Text>
     </View>
   );
@@ -284,12 +285,25 @@ export default function ProfileScreen() {
   const [passError, setPassError] = useState<string | null>(null);
   const [passSuccess, setPassSuccess] = useState<string | null>(null);
 
+  // ── Bank Account state ───────────────────────────────────────────────────────
+  const [accountName, setAccountName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankCode, setBankCode] = useState("");
+
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankError, setBankError] = useState<string | null>(null);
+  const [bankSuccess, setBankSuccess] = useState<string | null>(null);
+
   // ── Refs ─────────────────────────────────────────────────────────────────────
   const emailRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
   const classRef = useRef<TextInput>(null);
   const newPassRef = useRef<TextInput>(null);
   const confirmPassRef = useRef<TextInput>(null);
+  const accountNumberRef = useRef<TextInput>(null);
+  const bankNameRef = useRef<TextInput>(null);
+  const bankCodeRef = useRef<TextInput>(null);
 
   // ── Fetch latest profile from API on mount ──────────────────────────────────
   useEffect(() => {
@@ -310,6 +324,24 @@ export default function ProfileScreen() {
         setClassName(user?.className ?? "");
       } finally {
         setProfileFetching(false);
+      }
+    })();
+
+    // Fetch bank account data separately
+    (async () => {
+      try {
+        const res = await getBankAccount();
+        const bank = res.data.bankAccount;
+        setAccountName(bank.accountName ?? "");
+        setAccountNumber(bank.accountNumber ?? "");
+        setBankName(bank.bankName ?? "");
+        setBankCode(bank.bankCode ?? "");
+      } catch {
+        // Silently fail - user might not have added bank details yet
+        setAccountName("");
+        setAccountNumber("");
+        setBankName("");
+        setBankCode("");
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,6 +422,44 @@ export default function ProfileScreen() {
       setPassError(msg ?? "Failed to change password. Please try again.");
     } finally {
       setPassLoading(false);
+    }
+  };
+
+  // ── Update Bank Account ───────────────────────────────────────────────────────
+  const handleUpdateBankAccount = async () => {
+    setBankError(null);
+    setBankSuccess(null);
+
+    if (!accountName.trim() || !accountNumber.trim() || !bankName.trim() || !bankCode.trim()) {
+      setBankError("All bank account fields are required.");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(accountNumber)) {
+      setBankError("Account number must be exactly 10 digits.");
+      return;
+    }
+
+    setBankLoading(true);
+    try {
+      const res = await updateBankAccount({
+        accountName: accountName.trim(),
+        accountNumber: accountNumber.trim(),
+        bankName: bankName.trim(),
+        bankCode: bankCode.trim(),
+      });
+      setBankSuccess(res.message || "Bank account updated successfully!");
+    } catch (err: unknown) {
+      const msg =
+        err &&
+        typeof err === "object" &&
+        "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data
+              ?.message
+          : undefined;
+      setBankError(msg ?? "Failed to update bank account. Please try again.");
+    } finally {
+      setBankLoading(false);
     }
   };
 
@@ -534,6 +604,72 @@ export default function ProfileScreen() {
         onPress={handleChangePassword}
         loading={passLoading}
         variant="outline"
+      />
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          Nigerian BANK ACCOUNT
+      ═══════════════════════════════════════════════════════════════════ */}
+      <SectionTitle title="Nigerian Bank Account" />
+      <Divider title="Payment Details" />
+
+      {bankError && <ErrorBanner message={bankError} />}
+      {bankSuccess && <SuccessBanner message={bankSuccess} />}
+
+      <InputField
+        label="Account Name"
+        placeholder="e.g. John Doe"
+        iconName="person"
+        value={accountName}
+        onChangeText={setAccountName}
+        isDark={isDark}
+        returnKeyType="next"
+        onSubmitEditing={() => accountNumberRef.current?.focus()}
+      />
+
+      <InputField
+        label="Account Number"
+        placeholder="10-digit account number"
+        iconName="phone"
+        value={accountNumber}
+        onChangeText={setAccountNumber}
+        isDark={isDark}
+        keyboardType="phone-pad"
+        returnKeyType="next"
+        onSubmitEditing={() => bankNameRef.current?.focus()}
+        inputRef={accountNumberRef}
+      />
+
+      <InputField
+        label="Bank Name"
+        placeholder="e.g. GTBank, Access Bank"
+        iconName="school"
+        value={bankName}
+        onChangeText={setBankName}
+        isDark={isDark}
+        returnKeyType="next"
+        onSubmitEditing={() => bankCodeRef.current?.focus()}
+        inputRef={bankNameRef}
+      />
+
+      <InputField
+        label="Bank Code"
+        placeholder="e.g. 058 (GTBank)"
+        iconName="phone"
+        value={bankCode}
+        onChangeText={setBankCode}
+        isDark={isDark}
+        keyboardType="phone-pad"
+        returnKeyType="done"
+        onSubmitEditing={handleUpdateBankAccount}
+        inputRef={bankCodeRef}
+      />
+
+      <PrimaryButton
+        label="Save Bank Details"
+        icon="account-balance-wallet"
+        onPress={handleUpdateBankAccount}
+        loading={bankLoading}
+        variant="filled"
       />
 
       <FooterHint />
