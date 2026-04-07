@@ -17,9 +17,12 @@ import { io, Socket } from "socket.io-client";
 import { STORAGE_KEYS } from "./apiClient";
 
 // ── Socket.IO server URL ────────────────────────────────────────────────────
-// Must point at the root of the server (NOT /api), same host as API_BASE_URL.
-export const SOCKET_URL = "http://192.168.31.208:5000";
+// Production (Render): https://student-app-backend-cmtu.onrender.com
+// Development (Local): http://192.168.31.208:5000
+//
+// Render supports WebSocket! Socket.IO now works in production!
 
+export const SOCKET_URL = "https://student-app-backend-cmtu.onrender.com"; // Render (production)
 let socket: Socket | null = null;
 
 /**

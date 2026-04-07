@@ -13,18 +13,19 @@ import axios from "axios";
 // ─── Config ───────────────────────────────────────────────────────────────────
 // API Base URL configuration
 //
-// Uses Vercel production URL, with fallback to local IP for development
+// Uses Render production URL, with fallback to local IP for development
+// Render supports WebSocket, so Socket.IO works in production!
 //
 // Environment scenarios:
-//   Production (Published App) → "https://student-app-backend-two.vercel.app/api"
+//   Production (Published App) → "https://student-app-backend-cmtu.onrender.com/api"
 //   Development (Expo Go)      → "http://192.168.31.208:5000/api" (fallback)
 //   Android Emulator           → "http://10.0.2.2:5000/api"
 //   iOS Simulator              → "http://localhost:5000/api"
 //
 // To use local backend during development, temporarily uncomment the local URL below
 
-// Production URL (Vercel)
-export const API_BASE_URL = "https://student-app-backend-two.vercel.app/api";
+// Production URL (Render - supports WebSocket!)
+export const API_BASE_URL = "https://student-app-backend-cmtu.onrender.com/api";
 
 // For local development, uncomment this instead:
 // export const API_BASE_URL = "http://192.168.31.208:5000/api";
