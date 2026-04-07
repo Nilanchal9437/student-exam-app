@@ -9,7 +9,7 @@
 import Constants from "expo-constants";
 
 // ─── Determine Environment ────────────────────────────────────────────────────
-const IS_DEVELOPMENT = __DEV__;
+const IS_DEVELOPMENT = false;
 const EXPO_PROJECT_OWNER = Constants.expoConfig?.extra?.expoProjectOwner || "nilanchal";
 const APP_SLUG = Constants.expoConfig?.extra?.appSlug || "studen-exam-app";
 
@@ -35,24 +35,34 @@ export async function getLatestBuildUrl(): Promise<string> {
 
   try {
     // Fetch latest build from Expo API
-    const response = await fetch(
-      `https://api.expo.dev/v2/projects/${EXPO_PROJECT_OWNER}/${APP_SLUG}/latest-build`
-    );
+    const apiUrl = `https://api.expo.dev/v2/projects/${EXPO_PROJECT_OWNER}/${APP_SLUG}/latest-build`;
+    console.log("[Referral] Fetching latest build from:", apiUrl);
+    
+    const response = await fetch(apiUrl);
+    console.log("[Referral] API Response status:", response.status);
     
     if (response.ok) {
       const data = await response.json();
+      console.log("[Referral] API Response data:", JSON.stringify(data, null, 2));
+      
       const buildUrl = data?.artifacts?.buildUrl;
       if (buildUrl && typeof buildUrl === "string") {
+        console.log("[Referral] Got build URL:", buildUrl);
         cachedBuildUrl = buildUrl;
         cacheTimestamp = now;
         return buildUrl;
+      } else {
+        console.log("[Referral] No buildUrl in response, using fallback");
       }
+    } else {
+      console.warn("[Referral] API failed with status:", response.status);
     }
   } catch (error) {
-    console.warn("Failed to fetch latest build URL:", error);
+    console.warn("[Referral] Failed to fetch latest build URL:", error);
   }
 
   // Fallback to project URL if API fails
+  console.log("[Referral] Using fallback project URL:", EXPO_PROJECT_URL);
   return EXPO_PROJECT_URL;
 }
 
@@ -84,7 +94,7 @@ export async function generateReferralLink(userId: string): Promise<{
     return {
       deepLink,
       webLink,
-      displayLink: deepLink,
+      displayLink: webLink,
     };
   }
 }
