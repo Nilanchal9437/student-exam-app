@@ -1,32 +1,32 @@
 {
   "expo": {
-    "name": "studen-exam-app",
-    "slug": "studen-exam-app",
+    "name": "Jahfast",
+    "slug": "Jahfast",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "studenexamapp",
+    "icon": "./assets/icon.png",
+    "scheme": "jahfast",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nilanchal.studenexamapp"
+      "bundleIdentifier": "com.jahfast.jahfast"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundImage": "./assets/icon.png",
+        "monochromeImage": "./assets/icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "pan",
-      "package": "com.nilanchal.studenexamapp"
+      "package": "com.jahfast.jahfast"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png",
+      "favicon": "./assets/icon.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -42,7 +42,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -59,10 +59,10 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1132ab7f-5953-4862-911a-82ae68d1bd98"
+        "projectId": "e92a0b34-c4cb-4eeb-bf79-cc87bfaf7f7d"
       },
-      "expoProjectOwner": "nilanchal",
-      "appSlug": "studen-exam-app"
+      "expoProjectOwner": "Jahfast",
+      "appSlug": "jahfast"
     },
     "runtimeVersion": {
       "policy": "appVersion"
