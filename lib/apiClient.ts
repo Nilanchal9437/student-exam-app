@@ -25,10 +25,10 @@ import axios from "axios";
 // To use local backend during development, temporarily uncomment the local URL below
 
 // Production URL (Render - supports WebSocket!)
-export const API_BASE_URL = "https://student-app-backend-cmtu.onrender.com/api";
+// export const API_BASE_URL = "https://student-app-backend-cmtu.onrender.com/api";
 
 // For local development, uncomment this instead:
-// export const API_BASE_URL = "http://192.168.31.208:5000/api";
+export const API_BASE_URL = "http://192.168.31.208:5000/api";
 
 // Storage keys — keep in sync with authContext
 export const STORAGE_KEYS = {
@@ -66,20 +66,12 @@ apiClient.interceptors.request.use(
 );
 
 // ─── Response Interceptor ─────────────────────────────────────────────────────
-// On 401, clear persisted auth data so AuthContext redirects to login.
+// Pass responses through. We deliberately do NOT auto-clear tokens on 401 here
+// because a cold-start backend or a transient network issue could incorrectly
+// log the user out. Only the explicit logout() in AuthContext clears tokens.
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // Clear tokens — AuthContext will pick this up and navigate to login
-      await AsyncStorage.multiRemove([
-        STORAGE_KEYS.ACCESS_TOKEN,
-        STORAGE_KEYS.REFRESH_TOKEN,
-        STORAGE_KEYS.USER,
-      ]);
-    }
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );
 
 export default apiClient;

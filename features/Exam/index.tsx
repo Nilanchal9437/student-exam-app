@@ -230,7 +230,7 @@ function ExamCard({ exam }: { exam: Exam }) {
           onPressOut={() => setPressed(false)}
           onPress={() =>
             router.push({
-              pathname: "/(main)/test",
+              pathname: "/(main)/term",
               params: { examId: exam._id, examName: exam.name },
             })
           }

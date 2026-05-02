@@ -1,63 +1,30 @@
-import {
-  Ionicons,
-  MaterialCommunityIcons,
-  MaterialIcons,
-} from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-// ─── Data ─────────────────────────────────────────────────────────────────────
-const EXAM_TYPES = [
-  { id: "jamb", label: "JAMB", sub: "UTME", color: "#F97316", bg: "#FFF7ED" },
-  { id: "waec", label: "WAEC", sub: "SSCE", color: "#3B82F6", bg: "#EFF6FF" },
-  { id: "neco", label: "NECO", sub: "SSCE", color: "#10B981", bg: "#ECFDF5" },
-];
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Exam, fetchExams } from "../../lib/examService";
 
-const LEADERBOARD = [
-  { rank: 12, name: "You (Alex J.)", pts: 1240, isMe: true },
-  { rank: 1, name: "Sarah Emeka", pts: 2850, isMe: false },
-];
-
-const SUBJECTS = [
-  {
-    id: "math",
-    title: "Mathematics",
-    topics: "12 topics available",
-    free: true,
-    color: "#1a5c3a",
-    icon: "calculate",
-  },
-  {
-    id: "english",
-    title: "English Language",
-    topics: "8 topics available",
-    free: true,
-    color: "#b84c17",
-    icon: "menu-book",
-  },
-  {
-    id: "physics",
-    title: "Physics",
-    topics: "Upgrade to Unlock",
-    free: false,
-    color: "#1e293b",
-    icon: "science",
-  },
-  {
-    id: "biology",
-    title: "Biology",
-    topics: "Upgrade to Unlock",
-    free: false,
-    color: "#1e293b",
-    icon: "biotech",
-  },
-] as const;
+// ─── Level badge colours ──────────────────────────────────────────────────────
+const LEVEL_PALETTE: Record<string, { bg: string; text: string }> = {
+  BECE: { bg: "#DCFCE7", text: "#16A34A" },
+  JAMB: { bg: "#FFF7ED", text: "#EA580C" },
+  WAEC: { bg: "#EFF6FF", text: "#2452FF" },
+  NECO: { bg: "#FAF5FF", text: "#7C3AED" },
+  DEFAULT: { bg: "#F3F4F6", text: "#6B7280" },
+};
 
 // ─── VIP Banner ───────────────────────────────────────────────────────────────
 function VIPBanner() {
   return (
     <View
-      className="mx-4 mt-4 rounded-2xl px-5 py-5"
+      className="mx-4 mt-4 rounded-2xl px-5 py-5 overflow-hidden"
       style={{
         backgroundColor: "#2452FF",
         shadowColor: "#2452FF",
@@ -67,20 +34,39 @@ function VIPBanner() {
         elevation: 10,
       }}
     >
-      {/* Badge */}
+      {/* Decorative circles */}
+      <View
+        style={{
+          position: "absolute",
+          top: -30,
+          right: -30,
+          width: 110,
+          height: 110,
+          borderRadius: 55,
+          backgroundColor: "rgba(255,255,255,0.08)",
+        }}
+      />
+      <View
+        style={{
+          position: "absolute",
+          top: 20,
+          right: 30,
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          backgroundColor: "rgba(255,255,255,0.06)",
+        }}
+      />
+
       <View className="self-start bg-white/20 px-3 py-1 rounded-full mb-3">
         <Text className="text-white text-xs font-bold tracking-widest uppercase">
           Premium Access
         </Text>
       </View>
-
-      {/* Headline */}
       <Text className="text-white text-2xl font-bold mb-1">Upgrade to VIP</Text>
       <Text className="text-white/80 text-sm leading-5 mb-4">
-        Unlock all 20+ subjects, detailed solutions, and unlimited mock exams.
+        Unlock all subjects, detailed solutions, and unlimited mock exams.
       </Text>
-
-      {/* CTA */}
       <TouchableOpacity
         activeOpacity={0.88}
         className="bg-white rounded-xl py-3 items-center justify-center"
@@ -119,228 +105,180 @@ function SectionHeader({
   );
 }
 
-// ─── Exam Prep Cards ──────────────────────────────────────────────────────────
-function ExamPrepSection() {
+// ─── Exam Card (square, 2-per-row) ──────────────────────────────────────────
+function ExamCard({ exam, index }: { exam: Exam; index: number }) {
   const router = useRouter();
+
+  const ACCENTS = [
+    "#2452FF",
+    "#16A34A",
+    "#EA580C",
+    "#7C3AED",
+    "#E11D48",
+    "#0D9488",
+  ];
+  // Premium cards use a muted grey accent
+  const accent = exam.isPremium ? "#94A3B8" : ACCENTS[index % ACCENTS.length];
+
+  const handlePress = () => {
+    if (exam.isPremium) {
+      Alert.alert(
+        "Premium Content 🔒",
+        "Upgrade to Premium to unlock this exam and access all features.",
+        [{ text: "OK", style: "cancel" }]
+      );
+      return;
+    }
+    router.push({
+      pathname: "/(main)/term",
+      params: { examId: exam._id, examName: exam.name },
+    });
+  };
+
   return (
-    <>
-      <SectionHeader
-        title="Exam Prep"
-        action="See All"
-        onAction={() => router.push("/exam")}
-      />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+    <TouchableOpacity
+      activeOpacity={exam.isPremium ? 0.6 : 0.85}
+      onPress={handlePress}
+      className="flex-1 bg-white dark:bg-gray-800 rounded-2xl overflow-hidden"
+      style={{
+        shadowColor: accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 10,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: "#F1F5F9",
+        aspectRatio: 1,
+        opacity: exam.isPremium ? 0.65 : 1,
+      }}
+    >
+      {/* Top colour block */}
+      <View
+        className="w-full items-center justify-center"
+        style={{ backgroundColor: accent, flex: 1.2, padding: 12 }}
       >
-        {EXAM_TYPES.map((exam) => (
-          <TouchableOpacity
-            key={exam.id}
-            activeOpacity={0.8}
-            className="items-center justify-center bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl py-4 px-5"
-            style={{ minWidth: 96 }}
-          >
-            <View
-              className="w-14 h-14 rounded-full items-center justify-center mb-2"
-              style={{ backgroundColor: exam.bg }}
-            >
-              <Text
-                style={{ color: exam.color, fontSize: 15, fontWeight: "800" }}
-              >
-                {exam.label}
+        {/* Decorative circle */}
+        <View
+          style={{
+            position: "absolute",
+            top: -20,
+            right: -20,
+            width: 70,
+            height: 70,
+            borderRadius: 35,
+            backgroundColor: "rgba(255,255,255,0.12)",
+          }}
+        />
+        {/* Show lock for premium, book for free */}
+        {exam.isPremium ? (
+          <Ionicons name="lock-closed" size={28} color="rgba(255,255,255,0.9)" />
+        ) : (
+          <MaterialCommunityIcons
+            name="book-open-outline"
+            size={32}
+            color="rgba(255,255,255,0.9)"
+          />
+        )}
+      </View>
+
+      {/* Bottom info */}
+      <View className="px-3 py-2" style={{ flex: 1 }}>
+        <Text
+          className="text-gray-900 dark:text-white font-bold"
+          style={{ fontSize: 13, lineHeight: 17, marginBottom: 6 }}
+          numberOfLines={2}
+        >
+          {exam.name}
+        </Text>
+        <View className="flex-row items-center gap-1.5 flex-wrap">
+          {exam.isPremium ? (
+            <View className="bg-slate-100 px-2 py-0.5 rounded-full flex-row items-center gap-0.5">
+              <Ionicons name="lock-closed" size={9} color="#64748B" />
+              <Text style={{ color: "#64748B", fontSize: 10, fontWeight: "700" }}>
+                Premium
               </Text>
             </View>
-            <Text className="text-gray-600 dark:text-gray-400 text-xs font-semibold">
-              {exam.sub}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </>
-  );
-}
-
-// ─── Daily Leaderboard ────────────────────────────────────────────────────────
-function LeaderboardSection() {
-  const router = useRouter();
-  return (
-    <View className="mx-4 mt-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden">
-      {/* Header row */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-        <View className="flex-row items-center gap-2">
-          <Text style={{ fontSize: 18 }}>🏆</Text>
-          <Text className="text-gray-900 dark:text-white font-bold text-base">
-            Daily Leaderboard
-          </Text>
-        </View>
-        <View className="flex-row items-center gap-1">
-          <Ionicons name="time-outline" size={13} color="#9CA3AF" />
-          <Text className="text-gray-400 text-xs font-medium">
-            Ends in 4h 20m
-          </Text>
-        </View>
-      </View>
-
-      {/* Rows */}
-      {LEADERBOARD.map((entry) => (
-        <View
-          key={entry.name}
-          className={`flex-row items-center px-4 py-3 ${
-            entry.isMe
-              ? "bg-brand-blue/5 dark:bg-blue-900/20"
-              : "bg-white dark:bg-gray-800"
-          }`}
-        >
-          {/* Rank */}
-          <Text
-            className={`w-6 text-sm font-bold ${
-              entry.isMe
-                ? "text-brand-blue"
-                : "text-gray-400 dark:text-gray-500"
-            }`}
-          >
-            {entry.rank}
-          </Text>
-
-          {/* Avatar */}
-          <View
-            className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${
-              entry.isMe ? "bg-brand-blue/20" : "bg-gray-100 dark:bg-gray-700"
-            }`}
-          >
-            <Ionicons
-              name="person"
-              size={18}
-              color={entry.isMe ? "#2452FF" : "#9CA3AF"}
-            />
-          </View>
-
-          {/* Name */}
-          <Text
-            className={`flex-1 text-sm font-semibold ${
-              entry.isMe
-                ? "text-gray-900 dark:text-white"
-                : "text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            {entry.name}
-          </Text>
-
-          {/* Points */}
-          <Text
-            className={`text-sm font-bold ${
-              entry.isMe
-                ? "text-brand-blue"
-                : "text-gray-500 dark:text-gray-400"
-            }`}
-          >
-            {entry.pts.toLocaleString()} pts
-          </Text>
-        </View>
-      ))}
-
-      {/* View full ranking */}
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={() => router.push("/(main)/community")}
-        className="py-3 items-center justify-center flex-row gap-1.5 border-t border-gray-100 dark:border-gray-700"
-      >
-        <Text className="text-brand-blue font-semibold text-sm">
-          View Full Ranking
-        </Text>
-        <Ionicons name="arrow-forward" size={14} color="#2452FF" />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Subject Card ─────────────────────────────────────────────────────────────
-function SubjectCard({
-  title,
-  topics,
-  free,
-  color,
-  icon,
-}: {
-  title: string;
-  topics: string;
-  free: boolean;
-  color: string;
-  icon: string;
-}) {
-  return (
-    <View className="flex-1 mb-4">
-      {/* Thumbnail */}
-      <View
-        className="rounded-2xl h-36 items-center justify-center overflow-hidden mb-2"
-        style={{ backgroundColor: color }}
-      >
-        {/* FREE badge */}
-        {free && (
-          <View className="absolute top-3 left-3 bg-green-500 px-2 py-0.5 rounded-full z-10">
-            <Text className="text-white text-xs font-bold tracking-wider uppercase">
-              Free
-            </Text>
-          </View>
-        )}
-
-        {/* Subject icon */}
-        {free ? (
-          <MaterialIcons
-            name={icon as any}
-            size={44}
-            color="rgba(255,255,255,0.25)"
-          />
-        ) : (
-          <View className="items-center gap-2">
-            <View className="bg-white/15 rounded-full p-3">
-              <Ionicons name="lock-closed" size={24} color="white" />
+          ) : (
+            <View className="bg-green-50 px-2 py-0.5 rounded-full flex-row items-center gap-0.5">
+              <Ionicons name="checkmark-circle" size={9} color="#16A34A" />
+              <Text style={{ color: "#16A34A", fontSize: 10, fontWeight: "700" }}>
+                Free
+              </Text>
             </View>
-          </View>
-        )}
+          )}
+        </View>
       </View>
-
-      {/* Label */}
-      <Text className="text-gray-900 dark:text-white font-bold text-sm px-1">
-        {title}
-      </Text>
-      <Text
-        className={`text-xs px-1 mt-0.5 font-medium ${
-          free ? "text-gray-500 dark:text-gray-400" : "text-brand-blue"
-        }`}
-      >
-        {topics}
-      </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
-// ─── My Subjects ─────────────────────────────────────────────────────────────
-function MySubjectsSection() {
-  const pairs = [
-    [SUBJECTS[0], SUBJECTS[1]],
-    [SUBJECTS[2], SUBJECTS[3]],
-  ];
-
+// ─── Exam List Section ────────────────────────────────────────────────────────
+function ExamListSection() {
   const router = useRouter();
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchExams();
+      setExams(res.data.exams);
+    } catch {
+      setError("Failed to load exams.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <>
       <SectionHeader
-        title="My Subjects"
+        title="All Exams"
         action="See All"
-        onAction={() => router.push("/subject")}
+        onAction={() => router.push("/(main)/exam")}
       />
-      <View className="px-4">
-        {pairs.map((pair, pi) => (
-          <View key={pi} className="flex-row gap-3">
-            {pair.map((subject) => (
-              <SubjectCard key={subject.id} {...subject} />
-            ))}
+
+      {loading ? (
+        <View className="items-center py-8">
+          <ActivityIndicator size="small" color="#2452FF" />
+          <Text className="text-gray-400 dark:text-gray-500 text-xs mt-2">
+            Loading exams…
+          </Text>
+        </View>
+      ) : error ? (
+        <View className="mx-4 bg-red-50 dark:bg-red-900/20 rounded-2xl p-4 flex-row items-center gap-3">
+          <Ionicons name="cloud-offline-outline" size={20} color="#EF4444" />
+          <View className="flex-1">
+            <Text className="text-red-600 font-semibold text-sm">{error}</Text>
           </View>
-        ))}
-      </View>
+          <TouchableOpacity activeOpacity={0.8} onPress={load}>
+            <Text className="text-brand-blue font-bold text-sm">Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        // Chunk exams into pairs for 2-column grid
+        exams
+          .reduce((rows: Exam[][], exam, i) => {
+            if (i % 2 === 0) rows.push([exam]);
+            else rows[rows.length - 1].push(exam);
+            return rows;
+          }, [])
+          .map((pair, rowIdx) => (
+            <View key={rowIdx} className="flex-row px-4 gap-3 mb-3">
+              {pair.map((exam, i) => (
+                <ExamCard key={exam._id} exam={exam} index={rowIdx * 2 + i} />
+              ))}
+              {/* Fill empty slot if odd number of exams */}
+              {pair.length === 1 && <View className="flex-1" />}
+            </View>
+          ))
+      )}
     </>
   );
 }
@@ -361,7 +299,6 @@ function ScrabbleCard() {
           elevation: 10,
         }}
       >
-        {/* Decorative blobs */}
         <View
           style={{
             position: "absolute",
@@ -386,7 +323,6 @@ function ScrabbleCard() {
         />
 
         <View className="flex-row items-center px-5 pt-5 pb-4 gap-4">
-          {/* Tile cluster decoration */}
           <View className="items-center justify-center">
             <View className="flex-row gap-1 mb-1">
               {["V", "I", "P"].map((l) => (
@@ -428,7 +364,6 @@ function ScrabbleCard() {
             </View>
           </View>
 
-          {/* Text */}
           <View className="flex-1">
             <View className="flex-row items-center gap-2 mb-1">
               <View className="bg-white/20 px-2 py-0.5 rounded-full">
@@ -446,7 +381,6 @@ function ScrabbleCard() {
           </View>
         </View>
 
-        {/* CTA */}
         <TouchableOpacity
           activeOpacity={0.88}
           onPress={() => router.push("/(main)/scrabble")}
@@ -474,19 +408,13 @@ export default function HomeScreen() {
       <ScrollView
         className="flex-1 bg-gray-50 dark:bg-gray-900"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
         {/* VIP Upgrade Banner */}
         <VIPBanner />
 
-        {/* Exam Prep */}
-        <ExamPrepSection />
-
-        {/* Daily Leaderboard */}
-        <LeaderboardSection />
-
-        {/* My Subjects */}
-        <MySubjectsSection />
+        {/* All Exams — fetched from API, tapping goes to term selection */}
+        <ExamListSection />
 
         {/* Play Scrabble */}
         <ScrabbleCard />

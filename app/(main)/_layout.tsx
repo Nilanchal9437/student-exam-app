@@ -19,7 +19,7 @@ const DARK = {
 };
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
-type TabRoute = "/(main)/home" | "/(main)/subject" | "/(main)/exam" | "/(main)/results" | "/(main)/profile";
+type TabRoute = "/(main)/home" | "/(main)/exam" | "/(main)/results" | "/(main)/community" | "/(main)/profile";
 
 type TabDef = {
   label: string;
@@ -34,16 +34,6 @@ const TABS: TabDef[] = [
     route: "/(main)/home",
     iconActive: <Ionicons name="home" size={22} color="#2452FF" />,
     iconInactive: <Ionicons name="home-outline" size={22} color="#9CA3AF" />,
-  },
-  {
-    label: "Subjects",
-    route: "/(main)/subject",
-    iconActive: (
-      <MaterialCommunityIcons name="layers" size={22} color="#2452FF" />
-    ),
-    iconInactive: (
-      <MaterialCommunityIcons name="layers-outline" size={22} color="#9CA3AF" />
-    ),
   },
   {
     label: "Exams",
@@ -65,6 +55,14 @@ const TABS: TabDef[] = [
     iconActive: <Ionicons name="bar-chart" size={22} color="#2452FF" />,
     iconInactive: (
       <Ionicons name="bar-chart-outline" size={22} color="#9CA3AF" />
+    ),
+  },
+  {
+    label: "Chat",
+    route: "/(main)/community",
+    iconActive: <Ionicons name="chatbubbles" size={22} color="#2452FF" />,
+    iconInactive: (
+      <Ionicons name="chatbubbles-outline" size={22} color="#9CA3AF" />
     ),
   },
   {
@@ -163,8 +161,9 @@ export default function MainLayout() {
         <Header />
         <Stack>
           <Stack.Screen name="home" options={{ headerShown: false }} />
-          <Stack.Screen name="subject" options={{ headerShown: false }} />
           <Stack.Screen name="exam" options={{ headerShown: false }} />
+          <Stack.Screen name="term" options={{ headerShown: false }} />
+          <Stack.Screen name="subject" options={{ headerShown: false }} />
           <Stack.Screen name="test" options={{ headerShown: false }} />
           <Stack.Screen name="scrabble" options={{ headerShown: false }} />
           <Stack.Screen name="community" options={{ headerShown: false }} />

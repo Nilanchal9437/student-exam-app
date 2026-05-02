@@ -1,182 +1,137 @@
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Ionicons,
-  MaterialCommunityIcons,
-  MaterialIcons,
-} from "@expo/vector-icons";
-import React, { useState } from "react";
-import {
+  ActivityIndicator,
   FlatList,
   Text,
   TextInput,
   TouchableOpacity,
-  useColorScheme,
   View,
 } from "react-native";
+import { Subject, fetchSubjectsByTerm } from "../../lib/subjectService";
 
-// ─── Data ──────────────────────────────────────────────────────────────────────
-type Subject = {
-  id: string;
-  title: string;
-  subtitle: string;
-  icon: string;
-  iconFamily: "MaterialIcons" | "MaterialCommunityIcons" | "Ionicons";
-  aiQuestions: string;
-  free: boolean;
-};
+// ─── Icon map ─────────────────────────────────────────────────────────────────
+type SubjectIconName =
+  | "calculator-variant-outline"
+  | "flask-outline"
+  | "flask"
+  | "leaf"
+  | "alphabetical"
+  | "book-open-variant"
+  | "clock-time-four-outline"
+  | "earth"
+  | "chart-line"
+  | "bank-outline"
+  | "flask-empty-outline"
+  | "layers-outline";
 
-const SUBJECTS: Subject[] = [
-  {
-    id: "math",
-    title: "Mathematics",
-    subtitle: "Calculus, Algebra, Geometry",
-    icon: "function-variant",
-    iconFamily: "MaterialCommunityIcons",
-    aiQuestions: "AI-Generated Questions",
-    free: true,
-  },
-  {
-    id: "physics",
-    title: "Physics",
-    subtitle: "Mechanics, Optics, Electricity",
-    icon: "flask-outline",
-    iconFamily: "MaterialCommunityIcons",
-    aiQuestions: "AI-Generated Questions",
-    free: true,
-  },
-  {
-    id: "biology",
-    title: "Biology",
-    subtitle: "Genetics, Ecology, Anatomy",
-    icon: "leaf-outline",
-    iconFamily: "Ionicons",
-    aiQuestions: "AI-Generated Questions",
-    free: false,
-  },
-  {
-    id: "literature",
-    title: "Literature",
-    subtitle: "Drama, Poetry, Prose",
-    icon: "book-open-variant",
-    iconFamily: "MaterialCommunityIcons",
-    aiQuestions: "AI-Generated Questions",
-    free: false,
-  },
-  {
-    id: "history",
-    title: "History",
-    subtitle: "Global Events, Civilizations",
-    icon: "time-outline",
-    iconFamily: "Ionicons",
-    aiQuestions: "AI-Generated Questions",
-    free: false,
-  },
-  {
-    id: "geography",
-    title: "Geography",
-    subtitle: "Cartography, Environment",
-    icon: "earth",
-    iconFamily: "MaterialCommunityIcons",
-    aiQuestions: "AI-Generated Questions",
-    free: false,
-  },
-  {
-    id: "chemistry",
-    title: "Chemistry",
-    subtitle: "Organic, Inorganic, Physical",
-    icon: "flask",
-    iconFamily: "MaterialCommunityIcons",
-    aiQuestions: "AI-Generated Questions",
-    free: false,
-  },
-  {
-    id: "english",
-    title: "English Language",
-    subtitle: "Grammar, Comprehension, Writing",
-    icon: "alphabetical",
-    iconFamily: "MaterialCommunityIcons",
-    aiQuestions: "AI-Generated Questions",
-    free: false,
-  },
-];
-
-// ─── SubjectIcon Helper ────────────────────────────────────────────────────────
-function SubjectIcon({
-  icon,
-  iconFamily,
-  color,
-}: {
-  icon: string;
-  iconFamily: Subject["iconFamily"];
-  color: string;
-}) {
-  if (iconFamily === "MaterialCommunityIcons") {
-    return (
-      <MaterialCommunityIcons name={icon as any} size={32} color={color} />
-    );
-  }
-  if (iconFamily === "Ionicons") {
-    return <Ionicons name={icon as any} size={32} color={color} />;
-  }
-  return <MaterialIcons name={icon as any} size={32} color={color} />;
+function iconForSubject(name: string): SubjectIconName {
+  const n = name.toLowerCase();
+  if (n.includes("math")) return "calculator-variant-outline";
+  if (n.includes("physics")) return "flask-outline";
+  if (n.includes("chemistry")) return "flask";
+  if (n.includes("biology")) return "leaf";
+  if (n.includes("english")) return "alphabetical";
+  if (n.includes("literature")) return "book-open-variant";
+  if (n.includes("history")) return "clock-time-four-outline";
+  if (n.includes("geography")) return "earth";
+  if (n.includes("economics")) return "chart-line";
+  if (n.includes("government")) return "bank-outline";
+  if (n.includes("science")) return "flask-empty-outline";
+  return "layers-outline";
 }
 
-// ─── Upgrade Banner ───────────────────────────────────────────────────────────
-function UpgradeBanner() {
+// ─── Card colour palette ───────────────────────────────────────────────────────
+const CARD_COLORS = [
+  { bg: "#EFF6FF", icon: "#2452FF", border: "#BFDBFE" },
+  { bg: "#F0FDF4", icon: "#16A34A", border: "#BBF7D0" },
+  { bg: "#FFF7ED", icon: "#EA580C", border: "#FED7AA" },
+  { bg: "#FAF5FF", icon: "#7C3AED", border: "#E9D5FF" },
+  { bg: "#FFF1F2", icon: "#E11D48", border: "#FECDD3" },
+  { bg: "#F0FDFA", icon: "#0D9488", border: "#99F6E4" },
+];
+
+// ─── Subject Card ─────────────────────────────────────────────────────────────
+function SubjectCard({
+  subject,
+  index,
+  examName,
+}: {
+  subject: Subject;
+  index: number;
+  examName: string;
+}) {
+  const router = useRouter();
+  const palette = CARD_COLORS[index % CARD_COLORS.length];
+  const [pressed, setPressed] = useState(false);
+
   return (
     <View
-      className="mx-4 mt-4 mb-2 rounded-[18px] px-5 py-[18px] overflow-hidden"
+      className="mx-4 mb-3 bg-white dark:bg-gray-800 rounded-2xl px-4 py-4"
       style={{
-        backgroundColor: "#2452FF",
-        shadowColor: "#2452FF",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 16,
-        elevation: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: palette.border,
+        opacity: pressed ? 0.9 : 1,
       }}
     >
-      {/* Decorative circles */}
-      <View
-        className="absolute rounded-full"
-        style={{
-          right: -30,
-          top: -30,
-          width: 120,
-          height: 120,
-          backgroundColor: "rgba(255,255,255,0.08)",
-        }}
-      />
-      <View
-        className="absolute rounded-full"
-        style={{
-          right: 20,
-          bottom: -40,
-          width: 100,
-          height: 100,
-          backgroundColor: "rgba(255,255,255,0.06)",
-        }}
-      />
+      {/* Top row */}
+      <View className="flex-row items-center">
+        {/* Icon */}
+        <View
+          className="w-14 h-14 rounded-2xl items-center justify-center mr-3"
+          style={{ backgroundColor: palette.bg }}
+        >
+          <MaterialCommunityIcons
+            name={iconForSubject(subject.subjectName)}
+            size={26}
+            color={palette.icon}
+          />
+        </View>
 
-      {/* Badge */}
-      <View className="self-start bg-white/20 px-[10px] py-1 rounded-full mb-[10px]">
-        <Text className="text-white text-[10px] font-bold uppercase tracking-widest">
-          Current Plan: Free
-        </Text>
+        {/* Name */}
+        <View className="flex-1">
+          <Text className="text-gray-900 dark:text-white font-bold text-base leading-tight mb-0.5">
+            {subject.subjectName}
+          </Text>
+          <View className="flex-row items-center gap-1 mt-1">
+            <MaterialCommunityIcons
+              name="robot-outline"
+              size={12}
+              color="#6B7280"
+            />
+            <Text className="text-gray-500 dark:text-gray-400 text-xs font-semibold">
+              AI-Generated Questions
+            </Text>
+          </View>
+        </View>
       </View>
 
-      {/* Headline */}
-      <Text className="text-white text-[22px] font-extrabold mb-1 leading-7">
-        Unlock All Subjects
-      </Text>
-      <Text className="text-white/80 text-[13px] leading-[19px] mb-4">
-        Get unlimited AI-generated quizzes for only ₦1,500/month
-      </Text>
-
-      {/* CTA */}
+      {/* Start button */}
       <TouchableOpacity
-        activeOpacity={0.88}
-        className="self-start bg-white px-5 py-[10px] rounded-xl"
+        activeOpacity={0.85}
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
+        onPress={() =>
+          router.push({
+            pathname: "/(main)/test",
+            params: {
+              subjectId: subject._id,
+              subjectName: subject.subjectName,
+              examName,
+            },
+          })
+        }
+        className="mt-3 rounded-xl py-3 flex-row items-center justify-center gap-2"
+        style={{ backgroundColor: palette.icon }}
       >
-        <Text className="text-brand-blue font-bold text-sm">Upgrade Now</Text>
+        <Ionicons name="play" size={14} color="white" />
+        <Text className="text-white font-bold text-sm">Start Test</Text>
       </TouchableOpacity>
     </View>
   );
@@ -185,278 +140,227 @@ function UpgradeBanner() {
 // ─── Search Bar ───────────────────────────────────────────────────────────────
 function SearchBar({
   value,
-  onChangeText,
-  isDark,
+  onChange,
 }: {
   value: string;
-  onChangeText: (v: string) => void;
-  isDark: boolean;
+  onChange: (t: string) => void;
 }) {
   return (
-    <View className="mx-4 mt-4 mb-2 flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-[14px] px-[14px] py-[11px] gap-x-[10px]">
-      <Ionicons
-        name="search-outline"
-        size={18}
-        color={isDark ? "#6B7280" : "#9CA3AF"}
-      />
+    <View
+      className="mx-4 mt-4 flex-row items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-3 gap-3"
+      style={{
+        borderWidth: 1,
+        borderColor: "#E2E8F0",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
+      }}
+    >
+      <Ionicons name="search-outline" size={18} color="#9CA3AF" />
       <TextInput
         value={value}
-        onChangeText={onChangeText}
-        placeholder="Search subjects..."
-        placeholderTextColor={isDark ? "#6B7280" : "#9CA3AF"}
-        className="flex-1 text-sm text-gray-900 dark:text-gray-50 p-0"
+        onChangeText={onChange}
+        placeholder="Search subjects…"
+        placeholderTextColor="#9CA3AF"
+        className="flex-1 text-gray-900 dark:text-white text-sm font-medium"
+        style={{ padding: 0 }}
+        returnKeyType="search"
+        autoCorrect={false}
+        autoCapitalize="none"
+        clearButtonMode="while-editing"
       />
       {value.length > 0 && (
-        <TouchableOpacity onPress={() => onChangeText("")}>
-          <Ionicons
-            name="close-circle"
-            size={18}
-            color={isDark ? "#6B7280" : "#9CA3AF"}
-          />
+        <TouchableOpacity activeOpacity={0.7} onPress={() => onChange("")}>
+          <Ionicons name="close-circle" size={18} color="#9CA3AF" />
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-// ─── Free Subject Card ────────────────────────────────────────────────────────
-function FreeSubjectCard({
-  subject,
-  isDark,
+// ─── Empty / Error State ──────────────────────────────────────────────────────
+function EmptyState({
+  query,
+  error,
+  onRetry,
 }: {
-  subject: Subject;
-  isDark: boolean;
+  query: string;
+  error: string | null;
+  onRetry: () => void;
 }) {
   return (
-    <View
-      className="mx-4 mb-3 bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700"
-      style={{
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: isDark ? 0 : 0.06,
-        shadowRadius: 8,
-        elevation: 2,
-      }}
-    >
-      {/* Free Access Badge */}
-      <View className="absolute top-[14px] right-[14px] bg-emerald-50 px-2 py-[3px] rounded-lg">
-        <Text className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
-          Free Access
-        </Text>
-      </View>
-
-      {/* Icon */}
-      <View className="w-[52px] h-[52px] rounded-[14px] bg-brand-blue-light dark:bg-gray-700 items-center justify-center mb-3">
-        <SubjectIcon
-          icon={subject.icon}
-          iconFamily={subject.iconFamily}
-          color="#2452FF"
-        />
-      </View>
-
-      {/* Title & subtitle */}
-      <Text className="text-[17px] font-bold text-gray-900 dark:text-gray-50 mb-[3px]">
-        {subject.title}
-      </Text>
-      <Text className="text-[13px] text-gray-500 dark:text-gray-400 mb-[10px]">
-        {subject.subtitle}
-      </Text>
-
-      {/* AI label */}
-      <View className="flex-row items-center gap-x-[5px] mb-[14px]">
-        <MaterialCommunityIcons
-          name="robot-outline"
-          size={13}
-          color={isDark ? "#9CA3AF" : "#6B7280"}
-        />
-        <Text className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-          {subject.aiQuestions}
-        </Text>
-      </View>
-
-      {/* CTA */}
-      <TouchableOpacity
-        activeOpacity={0.88}
-        className="bg-brand-blue rounded-xl py-[13px] items-center"
-      >
-        <Text className="text-white font-bold text-[15px]">Start Learning</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Locked Subject Card ──────────────────────────────────────────────────────
-function LockedSubjectCard({
-  subject,
-  isDark,
-}: {
-  subject: Subject;
-  isDark: boolean;
-}) {
-  return (
-    <View
-      className="mx-4 mb-3 bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 opacity-80"
-    >
-      {/* Lock icon top-right */}
-      <View className="absolute top-[14px] right-[14px]">
+    <View className="flex-1 items-center justify-center py-16 px-8">
+      <View className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center mb-4">
         <Ionicons
-          name="lock-closed"
-          size={18}
-          color={isDark ? "#4B5563" : "#D1D5DB"}
+          name={error ? "cloud-offline-outline" : "search-outline"}
+          size={28}
+          color="#9CA3AF"
         />
       </View>
-
-      {/* Icon */}
-      <View className="w-[52px] h-[52px] rounded-[14px] bg-gray-50 dark:bg-gray-700 items-center justify-center mb-3">
-        <SubjectIcon
-          icon={subject.icon}
-          iconFamily={subject.iconFamily}
-          color={isDark ? "#6B7280" : "#9CA3AF"}
-        />
-      </View>
-
-      {/* Title & subtitle */}
-      <Text className="text-[17px] font-bold text-gray-700 dark:text-gray-400 mb-[3px]">
-        {subject.title}
+      <Text className="text-gray-900 dark:text-white font-bold text-base text-center mb-1">
+        {error ? "Failed to load subjects" : "No results found"}
       </Text>
-      <Text className="text-[13px] text-gray-400 dark:text-gray-500 mb-[10px]">
-        {subject.subtitle}
+      <Text className="text-gray-400 dark:text-gray-500 text-sm text-center leading-5 mb-4">
+        {error ??
+          (query.length > 0
+            ? `No subjects matched "${query}".`
+            : "No subjects are available for this term.")}
       </Text>
-
-      {/* AI label */}
-      <View className="flex-row items-center gap-x-[5px] mb-[14px]">
-        <MaterialCommunityIcons
-          name="robot-outline"
-          size={13}
-          color={isDark ? "#6B7280" : "#9CA3AF"}
-        />
-        <Text className="text-xs text-gray-400 dark:text-gray-500 font-medium">
-          {subject.aiQuestions}
-        </Text>
-      </View>
-
-      {/* Locked button */}
-      <TouchableOpacity
-        activeOpacity={0.88}
-        className="bg-gray-100 dark:bg-gray-700 rounded-xl py-[13px] items-center flex-row justify-center gap-x-[6px]"
-      >
-        <Ionicons
-          name="lock-closed"
-          size={14}
-          color={isDark ? "#6B7280" : "#9CA3AF"}
-        />
-        <Text className="text-gray-400 dark:text-gray-500 font-bold text-[15px]">
-          Locked
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Section Header ───────────────────────────────────────────────────────────
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <View className="px-4 mt-5 mb-2">
-      <Text className="text-lg font-extrabold text-gray-900 dark:text-gray-50">
-        {title}
-      </Text>
+      {error && (
+        <TouchableOpacity
+          onPress={onRetry}
+          className="bg-brand-blue px-6 py-3 rounded-xl"
+        >
+          <Text className="text-white font-bold text-sm">Retry</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 // ─── Subject Screen ───────────────────────────────────────────────────────────
 export default function SubjectScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { termId, termName, examName } = useLocalSearchParams<{
+    termId: string;
+    termName: string;
+    examName: string;
+  }>();
+
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const freeSubjects = SUBJECTS.filter(
-    (s) =>
-      s.free &&
-      (s.title.toLowerCase().includes(search.toLowerCase()) ||
-        s.subtitle.toLowerCase().includes(search.toLowerCase())),
-  );
-
-  const lockedSubjects = SUBJECTS.filter(
-    (s) =>
-      !s.free &&
-      (s.title.toLowerCase().includes(search.toLowerCase()) ||
-        s.subtitle.toLowerCase().includes(search.toLowerCase())),
-  );
-
-  type ListItem =
-    | { type: "banner" }
-    | { type: "search" }
-    | { type: "sectionHeader"; title: string }
-    | { type: "freeCard"; subject: Subject }
-    | { type: "lockedCard"; subject: Subject };
-
-  const listData: ListItem[] = [
-    { type: "banner" },
-    { type: "search" },
-    ...(freeSubjects.length > 0
-      ? [
-          { type: "sectionHeader" as const, title: "Free Subjects" },
-          ...freeSubjects.map((s) => ({
-            type: "freeCard" as const,
-            subject: s,
-          })),
-        ]
-      : []),
-    ...(lockedSubjects.length > 0
-      ? [
-          { type: "sectionHeader" as const, title: "Premium Subjects" },
-          ...lockedSubjects.map((s) => ({
-            type: "lockedCard" as const,
-            subject: s,
-          })),
-        ]
-      : []),
-  ];
-
-  const renderItem = ({ item }: { item: ListItem }) => {
-    switch (item.type) {
-      case "banner":
-        return <UpgradeBanner />;
-      case "search":
-        return (
-          <SearchBar value={search} onChangeText={setSearch} isDark={isDark} />
-        );
-      case "sectionHeader":
-        return <SectionHeader title={item.title} />;
-      case "freeCard":
-        return <FreeSubjectCard subject={item.subject} isDark={isDark} />;
-      case "lockedCard":
-        return <LockedSubjectCard subject={item.subject} isDark={isDark} />;
-      default:
-        return null;
+  const loadSubjects = useCallback(async () => {
+    if (!termId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchSubjectsByTerm(termId);
+      setSubjects(res.data.subjects);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? (err as { message: string }).message
+          : "Failed to load subjects.";
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [termId]);
 
-  return (
-    <View className="flex-1 bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <View className="px-5 pt-[14px] pb-[14px] bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-        <Text className="text-2xl font-extrabold text-gray-900 dark:text-gray-50">
-          Subjects
+  useEffect(() => {
+    loadSubjects();
+  }, [loadSubjects]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return subjects;
+    const q = search.trim().toLowerCase();
+    return subjects.filter((s) => s.subjectName.toLowerCase().includes(q));
+  }, [subjects, search]);
+
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <View className="flex-1 bg-gray-50 dark:bg-gray-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#2452FF" />
+        <Text className="text-gray-400 dark:text-gray-500 text-sm mt-3">
+          Loading subjects…
         </Text>
-        <Text className="text-[13px] text-gray-500 dark:text-gray-400 mt-0.5">
-          Choose a subject to start practising
+      </View>
+    );
+  }
+
+  const ListHeader = (
+    <>
+      {/* Blue banner — same as Exam/Term */}
+      <View
+        className="mx-4 mt-4 rounded-2xl px-5 pt-6 pb-5 overflow-hidden"
+        style={{
+          backgroundColor: "#2452FF",
+          shadowColor: "#2452FF",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.35,
+          shadowRadius: 16,
+          elevation: 10,
+        }}
+      >
+        <View
+          style={{
+            position: "absolute",
+            top: -30,
+            right: -30,
+            width: 110,
+            height: 110,
+            borderRadius: 55,
+            backgroundColor: "rgba(255,255,255,0.08)",
+          }}
+        />
+        <View
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 30,
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            backgroundColor: "rgba(255,255,255,0.06)",
+          }}
+        />
+        <View className="flex-row items-center gap-2 mb-1">
+          <Ionicons
+            name="layers-outline"
+            size={16}
+            color="rgba(255,255,255,0.85)"
+          />
+          <Text className="text-white/80 text-xs font-semibold uppercase tracking-widest">
+            {termName}
+          </Text>
+        </View>
+        <Text className="text-white text-xl font-bold mb-1">{examName}</Text>
+        <Text className="text-white/75 text-sm leading-5">
+          {subjects.length} subject{subjects.length !== 1 ? "s" : ""} available
+          — choose one to start
         </Text>
       </View>
 
-      {/* Content List */}
+      {/* Search */}
+      <SearchBar value={search} onChange={setSearch} />
+
+      {/* Section header */}
+      <View className="flex-row items-center justify-between px-4 mt-5 mb-3">
+        <Text className="text-gray-900 dark:text-white text-base font-bold">
+          Subjects
+        </Text>
+        <Text className="text-gray-400 dark:text-gray-500 text-xs font-semibold">
+          {filtered.length} subject{filtered.length !== 1 ? "s" : ""}
+        </Text>
+      </View>
+    </>
+  );
+
+  return (
+    <View className="flex-1 bg-gray-50 dark:bg-gray-900">
       <FlatList
-        data={listData}
-        keyExtractor={(item, index) => {
-          if (item.type === "freeCard" || item.type === "lockedCard") {
-            return item.subject.id;
-          }
-          return `${item.type}-${index}`;
-        }}
-        renderItem={renderItem}
+        data={filtered}
+        keyExtractor={(item) => item._id}
+        renderItem={({ item, index }) => (
+          <SubjectCard subject={item} index={index} examName={examName ?? ""} />
+        )}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={
+          <EmptyState query={search} error={error} onRetry={loadSubjects} />
+        }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        removeClippedSubviews
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
+        windowSize={10}
       />
     </View>
   );

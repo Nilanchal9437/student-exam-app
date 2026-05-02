@@ -21,7 +21,7 @@ import {
 } from "react-native";
 import {
   Question,
-  fetchQuestionsByExam,
+  fetchQuestionsBySubject,
 } from "../../lib/testService";
 import {
   submitExamResult,
@@ -208,7 +208,7 @@ function ResultsScreen({
           <Text className="text-white font-bold text-base">Try Again</Text>
         </TouchableOpacity>
         <TouchableOpacity activeOpacity={0.8} onPress={onExit} className="bg-gray-100 dark:bg-gray-800 rounded-2xl py-4 items-center">
-          <Text className="text-gray-700 dark:text-gray-300 font-bold text-base">Back to Exams</Text>
+          <Text className="text-gray-700 dark:text-gray-300 font-bold text-base">Back to Subjects</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -218,7 +218,11 @@ function ResultsScreen({
 // ─── Test Screen ──────────────────────────────────────────────────────────────
 export default function TestScreen() {
   const router = useRouter();
-  const { examId, examName } = useLocalSearchParams<{ examId: string; examName: string }>();
+  const { subjectId, subjectName, examName } = useLocalSearchParams<{
+    subjectId: string;
+    subjectName: string;
+    examName: string;
+  }>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -253,14 +257,14 @@ export default function TestScreen() {
 
   // ── Fetch questions on mount ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!examId) { setFetchError("No exam selected."); setFetching(false); return; }
+    if (!subjectId) { setFetchError("No subject selected."); setFetching(false); return; }
     (async () => {
       setFetching(true);
       setFetchError(null);
       try {
-        const res = await fetchQuestionsByExam(examId);
+        const res = await fetchQuestionsBySubject(subjectId);
         if (res.data.questions.length === 0) {
-          setFetchError("No questions found for this exam.");
+          setFetchError("No questions found for this subject.");
         } else {
           setQuestions(res.data.questions);
         }
@@ -270,7 +274,7 @@ export default function TestScreen() {
         setFetching(false);
       }
     })();
-  }, [examId]);
+  }, [subjectId]);
 
   // ── Progress bar animation ───────────────────────────────────────────────────
   useEffect(() => {
@@ -319,18 +323,17 @@ export default function TestScreen() {
   // ── Submit result to API when showing results ─────────────────────────────────
   const doSubmitResult = useCallback(
     async (finalAnswers: Record<string, "A" | "B" | "C" | "D" | null>, finalScore: number) => {
-      if (!examId || questions.length === 0) return;
+      if (!subjectId || questions.length === 0) return;
       setSubmitting(true);
       try {
         const payload = {
-          examId,
+          subjectId,
           duration: elapsedSeconds,
           answers: questions.map((q) => ({
             questionId: q._id,
             selectedAnswer: finalAnswers[q._id] ?? null,
             duration: questionDurationsRef.current[q._id] ?? 0,
           })),
-
         };
         const res = await submitExamResult(payload);
         setServerPercentage(res.data.result.percentage);
@@ -341,7 +344,7 @@ export default function TestScreen() {
         setSubmitting(false);
       }
     },
-    [examId, questions, elapsedSeconds]
+    [subjectId, questions, elapsedSeconds]
   );
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -435,7 +438,7 @@ export default function TestScreen() {
           <View className="w-9" />
         </View>
         <ResultsScreen
-          examName={examName ?? "Exam"}
+          examName={subjectName ?? examName ?? "Subject"}
           score={score}
           total={totalQuestions}
           coins={coins}
@@ -467,7 +470,7 @@ export default function TestScreen() {
         <View className="items-center">
           <Text className="text-[11px] font-bold text-brand-blue uppercase tracking-widest">{examName ?? "Exam"}</Text>
           <Text className="text-base font-extrabold text-gray-900 dark:text-white">
-            {currentQuestion.question.split(" ").slice(0, 4).join(" ")}…
+            {subjectName ?? "Subject"}
           </Text>
         </View>
         <View className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center">

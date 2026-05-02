@@ -18,7 +18,7 @@ export interface AnswerPayload {
 }
 
 export interface SubmitResultPayload {
-  examId: string;
+  subjectId: string;
   duration: number; // total exam seconds
   answers: AnswerPayload[];
 }
